@@ -14,11 +14,7 @@ import {
   HelpCircle,
   AlertTriangle,
   Check,
-  Maximize2,
-  Crosshair,
-  ListFilter,
-  Eye,
-  BookOpen
+  Crosshair
 } from 'lucide-react';
 
 interface MappedQuestion {
@@ -256,28 +252,28 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-zinc-800 selection:text-white antialiased">
-      {/* Minimalist Top Navigation Header */}
-      <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <main className="min-h-screen bg-[#F5F2EB] text-[#2C2A29] flex flex-col font-sans antialiased">
+      {/* Navigation Header */}
+      <header className="border-b border-[#E4DDD3] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm">
+            <div className="w-8 h-8 rounded bg-[#2C2A29] text-[#F5F2EB] flex items-center justify-center font-bold text-base tracking-widest">
               V
             </div>
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-sm tracking-tight text-white">VedaAI</h1>
-              <span className="text-zinc-600">/</span>
-              <span className="text-xs text-zinc-400 font-normal">Assessment Workspace</span>
+              <h1 className="font-semibold text-base tracking-wide text-[#2C2A29]">VEDAAI</h1>
+              <span className="text-[#C8BEB5]">/</span>
+              <span className="text-xs sm:text-sm text-[#7A6E65] font-normal tracking-wide">ASSESSMENT WORKSPACE</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-zinc-400">
+          <div className="flex items-center gap-3 text-sm">
             {mappingData && (
               <button
                 onClick={resetAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-white transition"
+                className="flex items-center gap-2 px-4 py-2 rounded border border-[#E4DDD3] bg-[#FAF8F5] text-[#2C2A29] hover:bg-[#EFECE6] transition font-medium text-xs sm:text-sm"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-4 h-4 text-[#7A6E65]" />
                 Reset Workspace
               </button>
             )}
@@ -286,37 +282,38 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
-        {/* Workspace Intro Header */}
+      <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col gap-10">
+        {/* Workspace Header - Prominent & Bold */}
         {!mappingData && (
-          <div className="max-w-xl mx-auto text-center flex flex-col items-center mb-2">
-            <h2 className="text-xl font-semibold text-zinc-100 tracking-tight">
-              Assessment Document Processing
+          <div className="max-w-3xl mx-auto text-center flex flex-col items-center mb-4">
+            <h2 className="text-4xl sm:text-5xl font-light text-[#2C2A29] tracking-tight uppercase">
+              Assessment Mapping
             </h2>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
-              Upload the original question paper and student handwritten answer sheet to automatically extract and map answers.
+            <div className="w-16 h-0.5 bg-[#C8BEB5] my-5"></div>
+            <p className="text-base sm:text-lg text-[#554F49] leading-relaxed font-normal">
+              Upload original question papers and student answer sheets to automatically digitize and correlate questions with bounding box overlays.
             </p>
           </div>
         )}
 
-        {/* Upload Cards — Minimalist Form */}
+        {/* Upload Cards — Generous & Prominent Scale */}
         {!mappingData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
             {/* Question Paper Card */}
-            <div className="p-5 rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-zinc-400" />
-                  <h3 className="text-xs font-semibold text-zinc-200">1. Question Paper</h3>
+            <div className="p-8 rounded-xl border border-[#E4DDD3] bg-[#FAF8F5] shadow-sm hover:border-[#C8BEB5] transition flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-6 h-6 text-[#7A6E65]" />
+                  <h3 className="text-base font-semibold tracking-wider text-[#2C2A29] uppercase">1. Question Paper</h3>
                 </div>
                 {questionPaper && (
-                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selected
+                  <span className="text-xs text-[#2C2A29] font-semibold bg-[#C8BEB5]/30 px-3 py-1 rounded border border-[#C8BEB5] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready
                   </span>
                 )}
               </div>
 
-              <label className="relative flex flex-col items-center justify-center w-full h-36 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-lg cursor-pointer bg-zinc-950/60 transition group">
+              <label className="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-[#C8BEB5] hover:border-[#7A6E65] rounded-lg cursor-pointer bg-[#F5F2EB]/60 hover:bg-[#F5F2EB] transition group p-6">
                 <input
                   type="file"
                   accept=".pdf,image/*"
@@ -325,35 +322,36 @@ export default function Home() {
                 />
                 {questionPaper ? (
                   <div className="flex flex-col items-center text-center px-4">
-                    <FileCheck className="w-7 h-7 text-zinc-300 mb-1" />
-                    <p className="text-xs font-medium text-zinc-200 truncate max-w-xs">{questionPaper.name}</p>
-                    <span className="mt-1.5 text-[10px] text-zinc-400 group-hover:text-zinc-200">Click to replace file</span>
+                    <FileCheck className="w-12 h-12 text-[#2C2A29] mb-3" />
+                    <p className="text-base font-semibold text-[#2C2A29] truncate max-w-xs">{questionPaper.name}</p>
+                    <p className="text-xs text-[#7A6E65] mt-1">{(questionPaper.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <span className="mt-3 text-xs text-[#7A6E65] group-hover:text-[#2C2A29] underline font-medium">Click to replace file</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-center px-4">
-                    <UploadCloud className="w-6 h-6 text-zinc-500 group-hover:text-zinc-300 mb-1 transition-colors" />
-                    <p className="text-xs font-medium text-zinc-300">Drop Question Paper here</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">PDF or image formats</p>
+                    <UploadCloud className="w-12 h-12 text-[#A89D93] group-hover:text-[#2C2A29] mb-3 transition-colors" />
+                    <p className="text-lg font-semibold text-[#2C2A29]">Select Question Paper</p>
+                    <p className="text-xs text-[#7A6E65] mt-1">Drag and drop or browse (PDF, PNG, JPG)</p>
                   </div>
                 )}
               </label>
             </div>
 
             {/* Answer Sheet Card */}
-            <div className="p-5 rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-zinc-400" />
-                  <h3 className="text-xs font-semibold text-zinc-200">2. Student Answer Sheet</h3>
+            <div className="p-8 rounded-xl border border-[#E4DDD3] bg-[#FAF8F5] shadow-sm hover:border-[#C8BEB5] transition flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ImageIcon className="w-6 h-6 text-[#7A6E65]" />
+                  <h3 className="text-base font-semibold tracking-wider text-[#2C2A29] uppercase">2. Student Answer Sheet</h3>
                 </div>
                 {answerSheet && (
-                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selected
+                  <span className="text-xs text-[#2C2A29] font-semibold bg-[#C8BEB5]/30 px-3 py-1 rounded border border-[#C8BEB5] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready
                   </span>
                 )}
               </div>
 
-              <label className="relative flex flex-col items-center justify-center w-full h-36 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-lg cursor-pointer bg-zinc-950/60 transition group">
+              <label className="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-[#C8BEB5] hover:border-[#7A6E65] rounded-lg cursor-pointer bg-[#F5F2EB]/60 hover:bg-[#F5F2EB] transition group p-6">
                 <input
                   type="file"
                   accept=".pdf,image/*"
@@ -362,15 +360,16 @@ export default function Home() {
                 />
                 {answerSheet ? (
                   <div className="flex flex-col items-center text-center px-4">
-                    <FileCheck className="w-7 h-7 text-zinc-300 mb-1" />
-                    <p className="text-xs font-medium text-zinc-200 truncate max-w-xs">{answerSheet.name}</p>
-                    <span className="mt-1.5 text-[10px] text-zinc-400 group-hover:text-zinc-200">Click to replace file</span>
+                    <FileCheck className="w-12 h-12 text-[#2C2A29] mb-3" />
+                    <p className="text-base font-semibold text-[#2C2A29] truncate max-w-xs">{answerSheet.name}</p>
+                    <p className="text-xs text-[#7A6E65] mt-1">{(answerSheet.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <span className="mt-3 text-xs text-[#7A6E65] group-hover:text-[#2C2A29] underline font-medium">Click to replace file</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-center px-4">
-                    <UploadCloud className="w-6 h-6 text-zinc-500 group-hover:text-zinc-300 mb-1 transition-colors" />
-                    <p className="text-xs font-medium text-zinc-300">Drop Student Answer Sheet here</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">Scanned images or PDF</p>
+                    <UploadCloud className="w-12 h-12 text-[#A89D93] group-hover:text-[#2C2A29] mb-3 transition-colors" />
+                    <p className="text-lg font-semibold text-[#2C2A29]">Select Student Answer Sheet</p>
+                    <p className="text-xs text-[#7A6E65] mt-1">Drag and drop or browse (Scanned images, PDF)</p>
                   </div>
                 )}
               </label>
@@ -378,16 +377,16 @@ export default function Home() {
           </div>
         )}
 
-        {/* Action Button & Processing Loader */}
+        {/* Action Button & Loader — Scaled Up */}
         {!mappingData && (
-          <div className="max-w-md mx-auto w-full flex flex-col items-center gap-3">
+          <div className="max-w-lg mx-auto w-full flex flex-col items-center gap-4 mt-2">
             {isProcessing ? (
-              <div className="w-full p-5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col items-center text-center">
-                <Loader2 className="w-5 h-5 text-zinc-300 animate-spin mb-2" />
-                <h4 className="text-xs font-medium text-zinc-200">{statusText}</h4>
-                <div className="mt-3 w-full bg-zinc-950 rounded-full h-1 overflow-hidden">
+              <div className="w-full p-6 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col items-center text-center shadow-sm">
+                <Loader2 className="w-7 h-7 text-[#2C2A29] animate-spin mb-3" />
+                <h4 className="text-sm font-semibold text-[#2C2A29] mb-1">{statusText}</h4>
+                <div className="mt-4 w-full bg-[#E4DDD3] rounded-full h-1.5 overflow-hidden">
                   <div 
-                    className="bg-zinc-300 h-full transition-all duration-300" 
+                    className="bg-[#2C2A29] h-full transition-all duration-300" 
                     style={{ width: `${(processStep / 3) * 100}%` }}
                   ></div>
                 </div>
@@ -396,93 +395,93 @@ export default function Home() {
               <button
                 onClick={startProcessing}
                 disabled={!questionPaper || !answerSheet}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-xs bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition"
+                className="w-full py-4 px-8 rounded font-semibold text-sm sm:text-base tracking-widest bg-[#2C2A29] text-[#F5F2EB] hover:bg-[#3E3A37] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition uppercase shadow-md active:scale-[0.99]"
               >
-                Process Assessment
-                <ArrowRight className="w-3.5 h-3.5" />
+                Process & Map Assessment
+                <ArrowRight className="w-5 h-5" />
               </button>
             )}
 
             {errorMsg && (
-              <div className="w-full p-3 rounded-lg bg-red-950/30 border border-red-900/50 text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <div className="w-full p-4 rounded bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* WORKSPACE RESULTS: MINIMALIST SPLIT VIEW */}
+        {/* WORKSPACE RESULTS VIEW */}
         {mappingData && (
-          <div className="flex flex-col gap-5">
-            {/* High-Level Stats Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
-                <span className="text-[11px] text-zinc-400 font-normal">Total Questions</span>
-                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.total_questions}</span>
+          <div className="flex flex-col gap-8">
+            {/* Stats Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col">
+                <span className="text-xs text-[#7A6E65] uppercase tracking-wider font-semibold">Total Questions</span>
+                <span className="text-2xl font-bold text-[#2C2A29] mt-1">{mappingData.summary.total_questions}</span>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
-                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
-                  <Check className="w-3 h-3 text-emerald-400" /> Matched
+              <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col">
+                <span className="text-xs text-[#7A6E65] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-[#2C2A29]" /> Matched
                 </span>
-                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.matched_questions}</span>
+                <span className="text-2xl font-bold text-[#2C2A29] mt-1">{mappingData.summary.matched_questions}</span>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
-                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" /> Unanswered
+              <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col">
+                <span className="text-xs text-[#7A6E65] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-[#7A6E65]" /> Unanswered
                 </span>
-                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.unanswered_questions}</span>
+                <span className="text-2xl font-bold text-[#2C2A29] mt-1">{mappingData.summary.unanswered_questions}</span>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
-                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
-                  <HelpCircle className="w-3 h-3 text-zinc-400" /> Unmatched Answers
+              <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col">
+                <span className="text-xs text-[#7A6E65] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-[#7A6E65]" /> Unmatched Answers
                 </span>
-                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.unmatched_answers}</span>
+                <span className="text-2xl font-bold text-[#2C2A29] mt-1">{mappingData.summary.unmatched_answers}</span>
               </div>
             </div>
 
-            {/* Sub-Header Toolbar */}
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
-              <div className="flex items-center gap-1">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between border-b border-[#E4DDD3] pb-4">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                  className={`px-4 py-2 rounded text-xs sm:text-sm font-semibold transition ${
                     activeTab === 'all'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#2C2A29] text-[#F5F2EB]'
+                      : 'bg-[#FAF8F5] text-[#7A6E65] hover:text-[#2C2A29] border border-[#E4DDD3]'
                   }`}
                 >
                   All ({mappingData.mapped_questions.length + mappingData.unmatched_answers.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('matched')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                  className={`px-4 py-2 rounded text-xs sm:text-sm font-semibold transition ${
                     activeTab === 'matched'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#2C2A29] text-[#F5F2EB]'
+                      : 'bg-[#FAF8F5] text-[#7A6E65] hover:text-[#2C2A29] border border-[#E4DDD3]'
                   }`}
                 >
                   Matched ({mappingData.summary.matched_questions})
                 </button>
                 <button
                   onClick={() => setActiveTab('unanswered')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                  className={`px-4 py-2 rounded text-xs sm:text-sm font-semibold transition ${
                     activeTab === 'unanswered'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#2C2A29] text-[#F5F2EB]'
+                      : 'bg-[#FAF8F5] text-[#7A6E65] hover:text-[#2C2A29] border border-[#E4DDD3]'
                   }`}
                 >
                   Unanswered ({mappingData.summary.unanswered_questions})
                 </button>
                 <button
                   onClick={() => setActiveTab('unmatched')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                  className={`px-4 py-2 rounded text-xs sm:text-sm font-semibold transition ${
                     activeTab === 'unmatched'
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#2C2A29] text-[#F5F2EB]'
+                      : 'bg-[#FAF8F5] text-[#7A6E65] hover:text-[#2C2A29] border border-[#E4DDD3]'
                   }`}
                 >
                   Unmatched ({mappingData.summary.unmatched_answers})
@@ -490,16 +489,16 @@ export default function Home() {
               </div>
 
               {selectedQuestionNumber && (
-                <span className="text-xs text-zinc-400 font-mono flex items-center gap-1">
-                  <Crosshair className="w-3 h-3 text-zinc-400" /> Active: Q{selectedQuestionNumber}
+                <span className="text-xs sm:text-sm text-[#7A6E65] font-mono flex items-center gap-1.5 font-semibold">
+                  <Crosshair className="w-4 h-4 text-[#2C2A29]" /> Active Selection: Q{selectedQuestionNumber}
                 </span>
               )}
             </div>
 
             {/* Split Screen Workspace */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              {/* LEFT COLUMN: QUESTION ITEMS (5 COLS) */}
-              <div className="lg:col-span-5 flex flex-col gap-2.5 max-h-[720px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* LEFT COLUMN: QUESTION ITEMS */}
+              <div className="lg:col-span-5 flex flex-col gap-4 max-h-[800px] overflow-y-auto pr-2">
                 {mappingData.mapped_questions
                   .filter((q) => {
                     if (activeTab === 'matched') return q.status === 'matched';
@@ -513,39 +512,39 @@ export default function Home() {
                       <div
                         key={q.question_number}
                         onClick={() => handleSelectQuestion(q.question_number)}
-                        className={`p-3.5 rounded-lg border transition cursor-pointer ${
+                        className={`p-5 rounded-lg border transition cursor-pointer ${
                           isSelected
-                            ? 'bg-zinc-900 border-zinc-500 ring-1 ring-zinc-500'
-                            : 'bg-zinc-900/40 border-zinc-800/80 hover:border-zinc-700'
+                            ? 'bg-[#C8BEB5]/40 border-[#2C2A29] ring-2 ring-[#2C2A29]/40 shadow-sm'
+                            : 'bg-[#FAF8F5] border-[#E4DDD3] hover:border-[#C8BEB5]'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3 mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[11px] font-mono font-medium">
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <span className="px-2.5 py-1 rounded bg-[#2C2A29] text-[#F5F2EB] text-xs font-mono font-bold">
                               Q{q.question_number}
                             </span>
-                            <h4 className="text-xs font-medium text-zinc-200 line-clamp-2">{q.question_text}</h4>
+                            <h4 className="text-sm sm:text-base font-semibold text-[#2C2A29]">{q.question_text}</h4>
                           </div>
 
                           {q.status === 'matched' ? (
-                            <span className="text-[10px] text-emerald-400 font-medium shrink-0">
+                            <span className="text-xs text-[#2C2A29] font-bold border border-[#C8BEB5] bg-[#C8BEB5]/40 px-2.5 py-1 rounded shrink-0">
                               Matched
                             </span>
                           ) : (
-                            <span className="text-[10px] text-amber-400 font-medium shrink-0">
+                            <span className="text-xs text-[#7A6E65] font-semibold border border-[#E4DDD3] bg-[#EFECE6] px-2.5 py-1 rounded shrink-0">
                               Unanswered
                             </span>
                           )}
                         </div>
 
                         {q.status === 'matched' ? (
-                          <div className="mt-2 pl-2.5 border-l border-zinc-700 text-xs">
-                            <p className="text-zinc-400 font-mono text-[11px] line-clamp-2">
+                          <div className="mt-3 pl-3.5 border-l-2 border-[#C8BEB5] text-xs sm:text-sm">
+                            <p className="text-[#3E3A37] font-mono text-xs sm:text-sm leading-relaxed">
                               {q.answers[0]?.raw_text}
                             </p>
                           </div>
                         ) : (
-                          <p className="mt-1 text-[11px] text-zinc-500 italic">No answer submitted.</p>
+                          <p className="mt-1 text-xs text-[#8C7E72] italic">No answer submitted.</p>
                         )}
                       </div>
                     );
@@ -557,33 +556,33 @@ export default function Home() {
                     <div
                       key={`unmatched-${idx}`}
                       onClick={() => setSelectedQuestionNumber(ans.matched_question_number || `unmatched-${idx}`)}
-                      className="p-3.5 rounded-lg bg-zinc-900/30 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition"
+                      className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] hover:border-[#C8BEB5] cursor-pointer transition"
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-mono text-zinc-400 font-medium">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-mono text-[#7A6E65] font-bold">
                           Unmatched Answer #{idx + 1}
                         </span>
                       </div>
-                      <p className="text-zinc-300 font-mono text-[11px] line-clamp-2">{ans.raw_text}</p>
+                      <p className="text-[#2C2A29] font-mono text-xs sm:text-sm">{ans.raw_text}</p>
                     </div>
                   ))}
               </div>
 
-              {/* RIGHT COLUMN: CANVAS OVERLAY (7 COLS) */}
+              {/* RIGHT COLUMN: CANVAS OVERLAY */}
               <div 
                 ref={viewerContainerRef}
-                className="lg:col-span-7 bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col gap-4 max-h-[720px] overflow-y-auto relative"
+                className="lg:col-span-7 bg-[#FAF8F5] border border-[#E4DDD3] rounded-lg p-5 flex flex-col gap-5 max-h-[800px] overflow-y-auto relative"
               >
-                <div className="flex items-center justify-between text-xs text-zinc-400 pb-2 border-b border-zinc-800">
-                  <span className="font-medium text-zinc-300">Answer Sheet View</span>
-                  <span className="font-mono text-[10px]">Normalized Overlay Bounding Boxes</span>
+                <div className="flex items-center justify-between text-xs sm:text-sm text-[#7A6E65] pb-3 border-b border-[#E4DDD3]">
+                  <span className="font-semibold text-[#2C2A29]">Answer Sheet Canvas</span>
+                  <span className="font-mono text-xs">Normalized Overlay Bounding Boxes</span>
                 </div>
 
                 {getPageNumbers().map((pageNum) => (
                   <div key={pageNum} className="flex flex-col gap-2">
-                    <div className="text-[10px] font-mono text-zinc-500">Page {pageNum}</div>
+                    <div className="text-xs font-mono text-[#7A6E65] font-semibold">Page {pageNum}</div>
 
-                    <div className="relative w-full rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 flex items-center justify-center min-h-[480px]">
+                    <div className="relative w-full rounded overflow-hidden border border-[#E4DDD3] bg-white flex items-center justify-center min-h-[520px]">
                       {answerSheetPreviewUrl ? (
                         <img
                           src={answerSheetPreviewUrl}
@@ -591,17 +590,17 @@ export default function Home() {
                           className="w-full h-auto object-contain block"
                         />
                       ) : (
-                        <div className="w-full min-h-[500px] bg-zinc-950 relative p-6 flex flex-col gap-5 border border-zinc-900 bg-[linear-gradient(to_bottom,#18181b_1px,transparent_1px)] bg-[size:100%_28px]">
-                          <div className="absolute top-0 bottom-0 left-10 w-0.5 bg-zinc-800"></div>
-                          <div className="text-[10px] font-mono text-zinc-600 pl-4">
+                        <div className="w-full min-h-[550px] bg-[#FAF8F5] relative p-8 flex flex-col gap-6 border border-[#E4DDD3] bg-[linear-gradient(to_bottom,#E4DDD3_1px,transparent_1px)] bg-[size:100%_32px]">
+                          <div className="absolute top-0 bottom-0 left-12 w-0.5 bg-[#C8BEB5]"></div>
+                          <div className="text-xs font-mono text-[#7A6E65] pl-6">
                             [Handwritten Answer Sheet — Page {pageNum}]
                           </div>
 
                           {mappingData.mapped_questions
                             .filter(q => q.answers.some(a => a.pages.some(p => p.page_number === pageNum)))
                             .map(q => (
-                              <div key={q.question_number} className="pl-4 font-mono text-xs text-zinc-300 leading-relaxed">
-                                <span className="text-zinc-500 font-medium">Ans {q.question_number}: </span>
+                              <div key={q.question_number} className="pl-6 font-mono text-xs sm:text-sm text-[#2C2A29] leading-relaxed">
+                                <span className="text-[#7A6E65] font-semibold">Ans {q.question_number}: </span>
                                 {q.answers[0]?.raw_text}
                               </div>
                             ))}
@@ -639,16 +638,16 @@ export default function Home() {
                                     height: `${heightPct}%`,
                                     width: `${widthPct}%`,
                                   }}
-                                  className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1 ${
+                                  className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
                                     isSelected
-                                      ? 'border-2 border-blue-400 bg-blue-500/20 z-30 ring-2 ring-blue-400/30'
+                                      ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/60 z-30 ring-2 ring-[#7A6E65]/50 shadow-md'
                                       : activeHoveredBoxId === q.question_number
-                                      ? 'border border-blue-400 bg-blue-500/10 z-20'
-                                      : 'border border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 z-10'
+                                      ? 'border border-[#7A6E65] bg-[#C8BEB5]/40 z-20'
+                                      : 'border border-[#C8BEB5] bg-[#C8BEB5]/20 hover:border-[#7A6E65] z-10'
                                   }`}
                                 >
-                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                                    isSelected ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-300 border border-zinc-700'
+                                  <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                                    isSelected ? 'bg-[#2C2A29] text-[#F5F2EB]' : 'bg-[#FAF8F5] text-[#2C2A29] border border-[#C8BEB5]'
                                   }`}>
                                     Q{q.question_number}
                                   </span>
@@ -686,13 +685,13 @@ export default function Home() {
                                   height: `${heightPct}%`,
                                   width: `${widthPct}%`,
                                 }}
-                                className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1 ${
+                                className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
                                   isSelected
-                                    ? 'border-2 border-zinc-300 bg-zinc-700/40 z-30'
-                                    : 'border border-dashed border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 z-10'
+                                    ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/40 z-30'
+                                    : 'border border-dashed border-[#C8BEB5] bg-[#C8BEB5]/15 hover:border-[#7A6E65] z-10'
                                 }`}
                               >
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800">
+                                <span className="px-2 py-0.5 rounded text-xs font-mono bg-[#FAF8F5] text-[#7A6E65] border border-[#E4DDD3]">
                                   Unmatched
                                 </span>
                               </div>
