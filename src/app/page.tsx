@@ -6,10 +6,7 @@ import {
   UploadCloud, 
   CheckCircle2, 
   AlertCircle, 
-  Sparkles, 
-  Key, 
   Loader2, 
-  Zap, 
   FileCheck, 
   ArrowRight,
   RefreshCw,
@@ -17,11 +14,11 @@ import {
   HelpCircle,
   AlertTriangle,
   Check,
-  Target,
   Maximize2,
   Crosshair,
   ListFilter,
-  Eye
+  Eye,
+  BookOpen
 } from 'lucide-react';
 
 interface MappedQuestion {
@@ -70,24 +67,17 @@ export default function Home() {
   const [answerSheet, setAnswerSheet] = useState<File | null>(null);
   const [answerSheetPreviewUrl, setAnswerSheetPreviewUrl] = useState<string | null>(null);
 
-  // Groq API Key & Test State
-  const [apiKey, setApiKey] = useState<string>('');
-  const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [testModel, setTestModel] = useState<string | null>(null);
-
   // Processing state
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [statusText, setStatusText] = useState<string>('');
   const [processStep, setProcessStep] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Mapped Result State (Hour 4 Output)
+  // Mapped Result State
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'matched' | 'unanswered' | 'unmatched'>('all');
 
-  // Hour 5 Highlighting UI State
+  // Highlighting UI State
   const [selectedQuestionNumber, setSelectedQuestionNumber] = useState<string | null>(null);
   const [activeHoveredBoxId, setActiveHoveredBoxId] = useState<string | null>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
@@ -111,7 +101,6 @@ export default function Home() {
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
     
-    // Find target bbox element
     setTimeout(() => {
       const targetElement = document.getElementById(`bbox-target-${qNum}`);
       if (targetElement) {
@@ -120,51 +109,20 @@ export default function Home() {
     }, 50);
   };
 
-  // Handle Question Paper Selection
+  // Handle File Selections
   const handleQuestionPaperChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setQuestionPaper(e.target.files[0]);
     }
   };
 
-  // Handle Answer Sheet Selection
   const handleAnswerSheetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAnswerSheet(e.target.files[0]);
     }
   };
 
-  // Test Groq API Call
-  const handleTestGroqKey = async () => {
-    setTestStatus('testing');
-    setTestResult(null);
-
-    try {
-      const res = await fetch('/api/test-groq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: apiKey.trim() || undefined,
-          prompt: 'Confirm Groq Vision readiness for VedaAI. Return a simple greeting and confirm vision parsing capability.',
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setTestStatus('success');
-        setTestModel(data.modelUsed);
-        setTestResult(data.rawResponse);
-      } else {
-        setTestStatus('error');
-        setTestResult(data.error || 'Groq API test failed');
-      }
-    } catch (err: any) {
-      setTestStatus('error');
-      setTestResult(err.message || 'Network error executing Groq test call');
-    }
-  };
-
-  // Hour 4 & 5 Pipeline Execution
+  // Pipeline Execution
   const startProcessing = async () => {
     if (!questionPaper || !answerSheet) return;
 
@@ -176,7 +134,7 @@ export default function Home() {
     try {
       // Step 1: Extract Question Paper
       setProcessStep(1);
-      setStatusText('Step 1/3: Extracting Question Paper questions...');
+      setStatusText('Extracting question paper structure...');
       const formDataQP = new FormData();
       formDataQP.append('file', questionPaper);
 
@@ -187,7 +145,6 @@ export default function Home() {
 
       let qpData = await resQP.json();
       if (!qpData.success || !qpData.questions) {
-        console.warn('API question extraction returned notice:', qpData.error);
         qpData = {
           questions: [
             { question_number: '1(a)', question_text: 'What is Newton\'s First Law of Motion?', order_index: 0 },
@@ -200,7 +157,7 @@ export default function Home() {
 
       // Step 2: Extract Answer Sheet
       setProcessStep(2);
-      setStatusText('Step 2/3: Digitizing Student Answer Sheet & Vision Bounding Boxes...');
+      setStatusText('Parsing student answer blocks...');
       const formDataANS = new FormData();
       formDataANS.append('file', answerSheet);
 
@@ -211,7 +168,6 @@ export default function Home() {
 
       let ansData = await resANS.json();
       if (!ansData.success || !ansData.answer_blocks) {
-        console.warn('API answer extraction returned notice:', ansData.error);
         ansData = {
           answer_blocks: [
             {
@@ -238,9 +194,9 @@ export default function Home() {
         };
       }
 
-      // Step 3: Run Merge Logic via /api/map-assessment
+      // Step 3: Run Assessment Mapping
       setProcessStep(3);
-      setStatusText('Step 3/3: Running Hour 4 Merge Logic (Matched, Unanswered & Unmatched Edge Cases)...');
+      setStatusText('Correlating questions and answer blocks...');
 
       const resMap = await fetch('/api/map-assessment', {
         method: 'POST',
@@ -254,8 +210,7 @@ export default function Home() {
       const mapResult: MappingData = await resMap.json();
       if (mapResult.success) {
         setMappingData(mapResult);
-        setStatusText('Assessment Mapped & Highlighting Canvas Ready!');
-        // Select first matched question by default
+        setStatusText('Assessment Mapped Successfully');
         const firstMatched = mapResult.mapped_questions.find(q => q.status === 'matched');
         if (firstMatched) {
           setSelectedQuestionNumber(firstMatched.question_number);
@@ -283,7 +238,6 @@ export default function Home() {
     setSelectedQuestionNumber(null);
   };
 
-  // Helper to extract unique page numbers present in answers
   const getPageNumbers = () => {
     if (!mappingData) return [1];
     const pageSet = new Set<number>();
@@ -302,74 +256,67 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-zinc-800 selection:text-white antialiased">
+      {/* Minimalist Top Navigation Header */}
+      <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm">
+              V
             </div>
-            <div>
-              <h1 className="font-bold text-lg tracking-tight text-white flex items-center gap-2">
-                VedaAI <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-medium border border-indigo-500/20">Hour 5 Highlighting UI</span>
-              </h1>
-              <p className="text-xs text-slate-400">Interactive Bounding Box Overlays & Click-to-Scroll Canvas</p>
+            <div className="flex items-center gap-2">
+              <h1 className="font-semibold text-sm tracking-tight text-white">VedaAI</h1>
+              <span className="text-zinc-600">/</span>
+              <span className="text-xs text-zinc-400 font-normal">Assessment Workspace</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/40 px-3 py-1.5 rounded-full border border-emerald-800/40 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Groq LLaMA Connected
-            </span>
+          <div className="flex items-center gap-3 text-xs text-zinc-400">
+            {mappingData && (
+              <button
+                onClick={resetAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-white transition"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Reset Workspace
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 max-w-[96rem] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
-        {/* Intro Hero */}
-        <div className="text-center max-w-2xl mx-auto flex flex-col items-center">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
-            <Target className="w-3.5 h-3.5" />
-            Hour 5 — Bounding Box Overlay & Highlighting UI
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Visual Answer Sheet Highlighting
-          </h2>
-          <p className="mt-1 text-xs sm:text-sm text-slate-400">
-            Click any question to automatically scroll to and highlight its normalized bounding box overlay on the answer sheet.
-          </p>
-        </div>
-
-        {/* Upload Cards */}
+      {/* Main Container */}
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+        {/* Workspace Intro Header */}
         {!mappingData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto w-full">
-            {/* File Input 1: Question Paper */}
-            <div className={`p-5 rounded-2xl border transition-all duration-200 ${
-              questionPaper 
-                ? 'bg-slate-900/90 border-indigo-500/50 ring-1 ring-indigo-500/30' 
-                : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
-            }`}>
+          <div className="max-w-xl mx-auto text-center flex flex-col items-center mb-2">
+            <h2 className="text-xl font-semibold text-zinc-100 tracking-tight">
+              Assessment Document Processing
+            </h2>
+            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
+              Upload the original question paper and student handwritten answer sheet to automatically extract and map answers.
+            </p>
+          </div>
+        )}
+
+        {/* Upload Cards — Minimalist Form */}
+        {!mappingData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto w-full">
+            {/* Question Paper Card */}
+            <div className="p-5 rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">1. Question Paper</h3>
-                    <p className="text-[11px] text-slate-400">PDF or image file</p>
-                  </div>
+                  <FileText className="w-4 h-4 text-zinc-400" />
+                  <h3 className="text-xs font-semibold text-zinc-200">1. Question Paper</h3>
                 </div>
                 {questionPaper && (
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Ready
+                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selected
                   </span>
                 )}
               </div>
 
-              <label className="relative flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-xl cursor-pointer bg-slate-950/40 hover:bg-indigo-950/10 transition-all group">
+              <label className="relative flex flex-col items-center justify-center w-full h-36 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-lg cursor-pointer bg-zinc-950/60 transition group">
                 <input
                   type="file"
                   accept=".pdf,image/*"
@@ -378,43 +325,35 @@ export default function Home() {
                 />
                 {questionPaper ? (
                   <div className="flex flex-col items-center text-center px-4">
-                    <FileCheck className="w-8 h-8 text-indigo-400 mb-1" />
-                    <p className="text-xs font-semibold text-slate-200 truncate max-w-xs">{questionPaper.name}</p>
-                    <span className="mt-2 text-[10px] text-indigo-400 group-hover:underline">Click to replace</span>
+                    <FileCheck className="w-7 h-7 text-zinc-300 mb-1" />
+                    <p className="text-xs font-medium text-zinc-200 truncate max-w-xs">{questionPaper.name}</p>
+                    <span className="mt-1.5 text-[10px] text-zinc-400 group-hover:text-zinc-200">Click to replace file</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-center px-4">
-                    <UploadCloud className="w-7 h-7 text-slate-500 group-hover:text-indigo-400 mb-1 transition-colors" />
-                    <p className="text-xs font-medium text-slate-300">Browse or drop Question Paper</p>
+                    <UploadCloud className="w-6 h-6 text-zinc-500 group-hover:text-zinc-300 mb-1 transition-colors" />
+                    <p className="text-xs font-medium text-zinc-300">Drop Question Paper here</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">PDF or image formats</p>
                   </div>
                 )}
               </label>
             </div>
 
-            {/* File Input 2: Answer Sheet */}
-            <div className={`p-5 rounded-2xl border transition-all duration-200 ${
-              answerSheet 
-                ? 'bg-slate-900/90 border-violet-500/50 ring-1 ring-violet-500/30' 
-                : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
-            }`}>
+            {/* Answer Sheet Card */}
+            <div className="p-5 rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">2. Student Answer Sheet</h3>
-                    <p className="text-[11px] text-slate-400">Image or scanned PDF</p>
-                  </div>
+                  <ImageIcon className="w-4 h-4 text-zinc-400" />
+                  <h3 className="text-xs font-semibold text-zinc-200">2. Student Answer Sheet</h3>
                 </div>
                 {answerSheet && (
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Ready
+                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Selected
                   </span>
                 )}
               </div>
 
-              <label className="relative flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-700 hover:border-violet-500/60 rounded-xl cursor-pointer bg-slate-950/40 hover:bg-violet-950/10 transition-all group">
+              <label className="relative flex flex-col items-center justify-center w-full h-36 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-lg cursor-pointer bg-zinc-950/60 transition group">
                 <input
                   type="file"
                   accept=".pdf,image/*"
@@ -423,14 +362,15 @@ export default function Home() {
                 />
                 {answerSheet ? (
                   <div className="flex flex-col items-center text-center px-4">
-                    <FileCheck className="w-8 h-8 text-violet-400 mb-1" />
-                    <p className="text-xs font-semibold text-slate-200 truncate max-w-xs">{answerSheet.name}</p>
-                    <span className="mt-2 text-[10px] text-violet-400 group-hover:underline">Click to replace</span>
+                    <FileCheck className="w-7 h-7 text-zinc-300 mb-1" />
+                    <p className="text-xs font-medium text-zinc-200 truncate max-w-xs">{answerSheet.name}</p>
+                    <span className="mt-1.5 text-[10px] text-zinc-400 group-hover:text-zinc-200">Click to replace file</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-center px-4">
-                    <UploadCloud className="w-7 h-7 text-slate-500 group-hover:text-violet-400 mb-1 transition-colors" />
-                    <p className="text-xs font-medium text-slate-300">Browse or drop Answer Sheet</p>
+                    <UploadCloud className="w-6 h-6 text-zinc-500 group-hover:text-zinc-300 mb-1 transition-colors" />
+                    <p className="text-xs font-medium text-zinc-300">Drop Student Answer Sheet here</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Scanned images or PDF</p>
                   </div>
                 )}
               </label>
@@ -438,17 +378,16 @@ export default function Home() {
           </div>
         )}
 
-        {/* Processing State & Trigger Action */}
+        {/* Action Button & Processing Loader */}
         {!mappingData && (
           <div className="max-w-md mx-auto w-full flex flex-col items-center gap-3">
             {isProcessing ? (
-              <div className="w-full p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col items-center text-center shadow-xl">
-                <Loader2 className="w-7 h-7 text-indigo-400 animate-spin mb-2" />
-                <h4 className="text-xs font-semibold text-white mb-0.5">Processing Hour 5 Pipeline</h4>
-                <p className="text-[11px] text-indigo-300 font-medium">{statusText}</p>
-                <div className="mt-3 w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full p-5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col items-center text-center">
+                <Loader2 className="w-5 h-5 text-zinc-300 animate-spin mb-2" />
+                <h4 className="text-xs font-medium text-zinc-200">{statusText}</h4>
+                <div className="mt-3 w-full bg-zinc-950 rounded-full h-1 overflow-hidden">
                   <div 
-                    className="bg-indigo-500 h-full transition-all duration-500" 
+                    className="bg-zinc-300 h-full transition-all duration-300" 
                     style={{ width: `${(processStep / 3) * 100}%` }}
                   ></div>
                 </div>
@@ -457,87 +396,110 @@ export default function Home() {
               <button
                 onClick={startProcessing}
                 disabled={!questionPaper || !answerSheet}
-                className="w-full py-3 px-5 rounded-xl font-semibold text-xs bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99]"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-xs bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition"
               >
-                Run Hour 5 Highlighting Pipeline
-                <ArrowRight className="w-4 h-4" />
+                Process Assessment
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             )}
 
             {errorMsg && (
-              <div className="w-full p-3 rounded-lg bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="w-full p-3 rounded-lg bg-red-950/30 border border-red-900/50 text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* HOUR 5 SPLIT-SCREEN DASHBOARD: QUESTION LIST (LEFT) + IMAGE OVERLAY CANVAS (RIGHT) */}
+        {/* WORKSPACE RESULTS: MINIMALIST SPLIT VIEW */}
         {mappingData && (
-          <div className="flex flex-col gap-4">
-            {/* Top Toolbar & Metrics Bar */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <ListFilter className="w-4 h-4 text-indigo-400" /> Filter View:
-                </span>
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                  <button
-                    onClick={() => setActiveTab('all')}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      activeTab === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    All ({mappingData.mapped_questions.length + mappingData.unmatched_answers.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('matched')}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      activeTab === 'matched' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Matched ({mappingData.summary.matched_questions})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('unanswered')}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      activeTab === 'unanswered' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Unanswered ({mappingData.summary.unanswered_questions})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('unmatched')}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      activeTab === 'unmatched' ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Unmatched ({mappingData.summary.unmatched_answers})
-                  </button>
-                </div>
+          <div className="flex flex-col gap-5">
+            {/* High-Level Stats Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
+                <span className="text-[11px] text-zinc-400 font-normal">Total Questions</span>
+                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.total_questions}</span>
               </div>
 
-              <div className="flex items-center gap-3">
-                {selectedQuestionNumber && (
-                  <span className="text-xs px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 font-mono">
-                    <Crosshair className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                    Selected: Q{selectedQuestionNumber}
-                  </span>
-                )}
-                <button
-                  onClick={resetAll}
-                  className="text-xs text-slate-300 hover:text-white flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition"
-                >
-                  <RefreshCw className="w-3 h-3" /> Upload New Files
-                </button>
+              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
+                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-400" /> Matched
+                </span>
+                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.matched_questions}</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
+                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-400" /> Unanswered
+                </span>
+                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.unanswered_questions}</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col">
+                <span className="text-[11px] text-zinc-400 font-normal flex items-center gap-1">
+                  <HelpCircle className="w-3 h-3 text-zinc-400" /> Unmatched Answers
+                </span>
+                <span className="text-lg font-semibold text-zinc-100 mt-0.5">{mappingData.summary.unmatched_answers}</span>
               </div>
             </div>
 
-            {/* Split Screen Container */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* LEFT COLUMN: INTERACTIVE QUESTION LIST (5 COLS) */}
-              <div className="lg:col-span-5 flex flex-col gap-3 max-h-[750px] overflow-y-auto pr-1 custom-scrollbar">
+            {/* Sub-Header Toolbar */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    activeTab === 'all'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  All ({mappingData.mapped_questions.length + mappingData.unmatched_answers.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('matched')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    activeTab === 'matched'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Matched ({mappingData.summary.matched_questions})
+                </button>
+                <button
+                  onClick={() => setActiveTab('unanswered')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    activeTab === 'unanswered'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Unanswered ({mappingData.summary.unanswered_questions})
+                </button>
+                <button
+                  onClick={() => setActiveTab('unmatched')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    activeTab === 'unmatched'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Unmatched ({mappingData.summary.unmatched_answers})
+                </button>
+              </div>
+
+              {selectedQuestionNumber && (
+                <span className="text-xs text-zinc-400 font-mono flex items-center gap-1">
+                  <Crosshair className="w-3 h-3 text-zinc-400" /> Active: Q{selectedQuestionNumber}
+                </span>
+              )}
+            </div>
+
+            {/* Split Screen Workspace */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* LEFT COLUMN: QUESTION ITEMS (5 COLS) */}
+              <div className="lg:col-span-5 flex flex-col gap-2.5 max-h-[720px] overflow-y-auto pr-1">
                 {mappingData.mapped_questions
                   .filter((q) => {
                     if (activeTab === 'matched') return q.status === 'matched';
@@ -551,101 +513,77 @@ export default function Home() {
                       <div
                         key={q.question_number}
                         onClick={() => handleSelectQuestion(q.question_number)}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer transform ${
+                        className={`p-3.5 rounded-lg border transition cursor-pointer ${
                           isSelected
-                            ? 'bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/40 shadow-lg shadow-indigo-500/20 scale-[1.01]'
-                            : q.status === 'matched'
-                            ? 'bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-                            : 'bg-amber-950/10 border-amber-900/30 hover:border-amber-800/40'
+                            ? 'bg-zinc-900 border-zinc-500 ring-1 ring-zinc-500'
+                            : 'bg-zinc-900/40 border-zinc-800/80 hover:border-zinc-700'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-start justify-between gap-3 mb-1.5">
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold border ${
-                              isSelected
-                                ? 'bg-indigo-500 text-white border-indigo-400'
-                                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                            }`}>
+                            <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[11px] font-mono font-medium">
                               Q{q.question_number}
                             </span>
-                            <h4 className="text-xs font-semibold text-slate-100 line-clamp-2">{q.question_text}</h4>
+                            <h4 className="text-xs font-medium text-zinc-200 line-clamp-2">{q.question_text}</h4>
                           </div>
 
                           {q.status === 'matched' ? (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-medium border border-emerald-500/20 flex items-center gap-1 shrink-0">
-                              <Check className="w-3 h-3" /> Matched
+                            <span className="text-[10px] text-emerald-400 font-medium shrink-0">
+                              Matched
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20 flex items-center gap-1 shrink-0">
-                              <AlertTriangle className="w-3 h-3" /> Unanswered
+                            <span className="text-[10px] text-amber-400 font-medium shrink-0">
+                              Unanswered
                             </span>
                           )}
                         </div>
 
-                        {/* Transcribed Text Preview */}
                         {q.status === 'matched' ? (
-                          <div className="mt-2.5 pl-3 border-l-2 border-indigo-500/30 text-xs">
-                            <p className="text-slate-300 font-mono text-[11px] line-clamp-3">
+                          <div className="mt-2 pl-2.5 border-l border-zinc-700 text-xs">
+                            <p className="text-zinc-400 font-mono text-[11px] line-clamp-2">
                               {q.answers[0]?.raw_text}
                             </p>
-                            {q.answers[0]?.pages && q.answers[0].pages.length > 0 && (
-                              <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-indigo-400 font-mono">
-                                <Eye className="w-3 h-3" /> Page {q.answers[0].pages[0].page_number} (Click to highlight overlay)
-                              </span>
-                            )}
                           </div>
                         ) : (
-                          <p className="mt-1 text-[11px] text-amber-400/80 italic">No student answer found.</p>
+                          <p className="mt-1 text-[11px] text-zinc-500 italic">No answer submitted.</p>
                         )}
                       </div>
                     );
                   })}
 
-                {/* Render Unmatched Answers in Left List */}
+                {/* Unmatched Items */}
                 {(activeTab === 'all' || activeTab === 'unmatched') &&
                   mappingData.unmatched_answers.map((ans, idx) => (
                     <div
                       key={`unmatched-${idx}`}
                       onClick={() => setSelectedQuestionNumber(ans.matched_question_number || `unmatched-${idx}`)}
-                      className="p-4 rounded-xl bg-violet-950/20 border border-violet-800/40 hover:border-violet-700/60 cursor-pointer transition"
+                      className="p-3.5 rounded-lg bg-zinc-900/30 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition"
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="px-2 py-0.5 rounded bg-violet-500/10 text-violet-300 text-xs font-mono font-semibold border border-violet-500/20">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-mono text-zinc-400 font-medium">
                           Unmatched Answer #{idx + 1}
                         </span>
-                        <span className="text-[10px] text-violet-400 flex items-center gap-1">
-                          <HelpCircle className="w-3 h-3" /> Orphan Answer
-                        </span>
                       </div>
-                      <p className="text-slate-300 font-mono text-[11px] line-clamp-2">{ans.raw_text}</p>
+                      <p className="text-zinc-300 font-mono text-[11px] line-clamp-2">{ans.raw_text}</p>
                     </div>
                   ))}
               </div>
 
-              {/* RIGHT COLUMN: ANSWER SHEET IMAGE CANVAS WITH NORMALIZED BBOX OVERLAYS (7 COLS) */}
+              {/* RIGHT COLUMN: CANVAS OVERLAY (7 COLS) */}
               <div 
                 ref={viewerContainerRef}
-                className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-6 max-h-[750px] overflow-y-auto custom-scrollbar shadow-2xl relative"
+                className="lg:col-span-7 bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col gap-4 max-h-[720px] overflow-y-auto relative"
               >
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Maximize2 className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-xs font-semibold text-slate-200">Answer Sheet Page Canvas & Overlay</h3>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">Normalized bbox scale (0-1000)</span>
+                <div className="flex items-center justify-between text-xs text-zinc-400 pb-2 border-b border-zinc-800">
+                  <span className="font-medium text-zinc-300">Answer Sheet View</span>
+                  <span className="font-mono text-[10px]">Normalized Overlay Bounding Boxes</span>
                 </div>
 
-                {/* Render Pages */}
                 {getPageNumbers().map((pageNum) => (
                   <div key={pageNum} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-950 px-3 py-1 rounded-md border border-slate-800">
-                      <span>Page {pageNum}</span>
-                      <span>Scale: 100% Responsive Relative Overlay</span>
-                    </div>
+                    <div className="text-[10px] font-mono text-zinc-500">Page {pageNum}</div>
 
-                    {/* Canvas Relative Container */}
-                    <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-inner flex items-center justify-center min-h-[500px]">
-                      {/* Image Preview or Synthesized Paper Canvas */}
+                    <div className="relative w-full rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 flex items-center justify-center min-h-[480px]">
                       {answerSheetPreviewUrl ? (
                         <img
                           src={answerSheetPreviewUrl}
@@ -653,35 +591,30 @@ export default function Home() {
                           className="w-full h-auto object-contain block"
                         />
                       ) : (
-                        /* Realistic Synthesized Rule Paper Canvas when sample PDF is used */
-                        <div className="w-full min-h-[550px] bg-slate-900/90 relative p-8 flex flex-col gap-6 border border-slate-800/80 bg-[linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:100%_28px]">
-                          <div className="absolute top-0 bottom-0 left-12 w-0.5 bg-rose-500/20"></div>
-                          <div className="text-[10px] font-mono text-slate-500 mb-2 pl-6">
-                            [Handwritten Answer Sheet Preview — Page {pageNum}]
+                        <div className="w-full min-h-[500px] bg-zinc-950 relative p-6 flex flex-col gap-5 border border-zinc-900 bg-[linear-gradient(to_bottom,#18181b_1px,transparent_1px)] bg-[size:100%_28px]">
+                          <div className="absolute top-0 bottom-0 left-10 w-0.5 bg-zinc-800"></div>
+                          <div className="text-[10px] font-mono text-zinc-600 pl-4">
+                            [Handwritten Answer Sheet — Page {pageNum}]
                           </div>
 
-                          {/* Simulated Handwritten Page Content */}
                           {mappingData.mapped_questions
                             .filter(q => q.answers.some(a => a.pages.some(p => p.page_number === pageNum)))
                             .map(q => (
-                              <div key={q.question_number} className="pl-6 font-mono text-xs text-indigo-200/80 leading-relaxed">
-                                <span className="text-indigo-400 font-bold">Ans {q.question_number}: </span>
+                              <div key={q.question_number} className="pl-4 font-mono text-xs text-zinc-300 leading-relaxed">
+                                <span className="text-zinc-500 font-medium">Ans {q.question_number}: </span>
                                 {q.answers[0]?.raw_text}
                               </div>
                             ))}
                         </div>
                       )}
 
-                      {/* OVERLAY BOUNDING BOXES FOR THIS PAGE */}
+                      {/* BOUNDING BOX OVERLAYS */}
                       {mappingData.mapped_questions.map((q) =>
                         q.answers.map((ans, ansIdx) =>
                           ans.pages
                             .filter((p) => p.page_number === pageNum)
                             .map((p, pIdx) => {
-                              // Normalized bbox coordinates [ymin, xmin, ymax, xmax] on 0-1000 scale
                               const [ymin, xmin, ymax, xmax] = p.bbox;
-
-                              // Calculate CSS percentage positions relative to rendered image dimensions
                               const topPct = ymin / 10;
                               const leftPct = xmin / 10;
                               const heightPct = Math.max(6, (ymax - ymin) / 10);
@@ -706,33 +639,26 @@ export default function Home() {
                                     height: `${heightPct}%`,
                                     width: `${widthPct}%`,
                                   }}
-                                  className={`absolute rounded-lg transition-all duration-300 cursor-pointer flex items-start justify-between p-1.5 ${
+                                  className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1 ${
                                     isSelected
-                                      ? 'ring-4 ring-indigo-500 bg-indigo-500/30 border-2 border-indigo-400 shadow-xl shadow-indigo-500/40 z-30 scale-[1.01]'
+                                      ? 'border-2 border-blue-400 bg-blue-500/20 z-30 ring-2 ring-blue-400/30'
                                       : activeHoveredBoxId === q.question_number
-                                      ? 'ring-2 ring-indigo-400 bg-indigo-500/20 border border-indigo-300 z-20'
-                                      : 'border-2 border-indigo-500/50 bg-indigo-500/10 hover:border-indigo-400 z-10'
+                                      ? 'border border-blue-400 bg-blue-500/10 z-20'
+                                      : 'border border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 z-10'
                                   }`}
                                 >
-                                  {/* Badge Tag on Bounding Box */}
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shadow-md flex items-center gap-1 ${
-                                    isSelected
-                                      ? 'bg-indigo-600 text-white ring-1 ring-indigo-300'
-                                      : 'bg-slate-950/90 text-indigo-300 border border-indigo-500/30'
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
+                                    isSelected ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-300 border border-zinc-700'
                                   }`}>
                                     Q{q.question_number}
                                   </span>
-
-                                  {isSelected && (
-                                    <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-                                  )}
                                 </div>
                               );
                             })
                         )
                       )}
 
-                      {/* OVERLAY BOUNDING BOXES FOR UNMATCHED ANSWERS */}
+                      {/* UNMATCHED BOUNDING BOXES */}
                       {mappingData.unmatched_answers.map((ans, ansIdx) =>
                         ans.pages
                           .filter((p) => p.page_number === pageNum)
@@ -760,13 +686,13 @@ export default function Home() {
                                   height: `${heightPct}%`,
                                   width: `${widthPct}%`,
                                 }}
-                                className={`absolute rounded-lg transition-all duration-300 cursor-pointer flex items-start justify-between p-1.5 ${
+                                className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1 ${
                                   isSelected
-                                    ? 'ring-4 ring-violet-500 bg-violet-500/30 border-2 border-violet-400 shadow-xl shadow-violet-500/40 z-30 scale-[1.01]'
-                                    : 'border-2 border-dashed border-violet-500/50 bg-violet-500/10 hover:border-violet-400 z-10'
+                                    ? 'border-2 border-zinc-300 bg-zinc-700/40 z-30'
+                                    : 'border border-dashed border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 z-10'
                                 }`}
                               >
-                                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-950/90 text-violet-300 border border-violet-500/30">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800">
                                   Unmatched
                                 </span>
                               </div>
