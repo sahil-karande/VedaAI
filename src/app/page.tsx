@@ -319,67 +319,12 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowKeyInput(!showKeyInput)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700"
-            >
-              <Key className="w-3.5 h-3.5 text-indigo-400" />
-              {apiKey ? 'Groq Key Configured' : 'Configure Groq API Key'}
-            </button>
-            <div className="h-4 w-px bg-slate-800"></div>
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-800/40">
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/40 px-3 py-1.5 rounded-full border border-emerald-800/40 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Groq LLaMA Ready
+              Groq LLaMA Connected
             </span>
           </div>
         </div>
-
-        {/* Groq API Key Drawer */}
-        {showKeyInput && (
-          <div className="bg-slate-900 border-b border-slate-800 p-4 transition-all">
-            <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex-1 w-full">
-                <input
-                  type="password"
-                  placeholder="Paste your Groq API key (gsk_...)"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-              <button
-                onClick={handleTestGroqKey}
-                disabled={testStatus === 'testing'}
-                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition"
-              >
-                {testStatus === 'testing' ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Testing API Call...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-3.5 h-3.5" />
-                    Test Groq API Call
-                  </>
-                )}
-              </button>
-            </div>
-            {testResult && (
-              <div className="max-w-3xl mx-auto mt-3 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span>Groq Response ({testModel || 'LLaMA'}):</span>
-                  {testStatus === 'success' ? (
-                    <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Connected</span>
-                  ) : (
-                    <span className="text-rose-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Error</span>
-                  )}
-                </div>
-                <p className="text-slate-300 break-words">{testResult}</p>
-              </div>
-            )}
-          </div>
-        )}
       </header>
 
       {/* Main Content Area */}
