@@ -1,0 +1,186 @@
+import { NextRequest, NextResponse } from 'next/server';
+import Groq from 'groq-sdk';
+import pdfParse from 'pdf-parse';
+
+const EXTRACTION_SYSTEM_PROMPT = `You are an expert exam paper parser. Extract every single question from the provided question paper document.
+
+CRITICAL EXTRACTION REQUIREMENTS:
+1. PRESERVE ORIGINAL NUMBERING: Extract question_number strings EXACTLY as printed (e.g., "1", "1(a)", "11(b)", "Q1.2", "Part A - Q3"). Do NOT renumber or standardize question numbers.
+2. SUB-PARTS AS SEPARATE ENTRIES: Treat labelled sub-parts (e.g., 11(a), 11(b), 1(i), 1(ii)) as separate, distinct question entries in the output list.
+3. PRESERVE PRINTED ORDER: Maintain the exact printed sequence using a zero-indexed integer field "order_index" (0, 1, 2, ...).
+4. COMPLETE TEXT: Include the full, unabridged text of the question.
+5. STRICT JSON OUTPUT: Return ONLY a valid JSON object matching this schema:
+{
+  "questions": [
+    {
+      "question_number": "string",
+      "question_text": "string",
+      "order_index": 0
+    }
+  ]
+}`;
+
+export async function POST(req: NextRequest) {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey || apiKey.includes('your_groq_api_key_here')) {
+      return NextResponse.json(
+        { success: false, error: 'GROQ_API_KEY is missing or invalid in .env.local' },
+        { status: 400 }
+      );
+    }
+
+    const groq = new Groq({ apiKey: apiKey.trim() });
+    const contentType = req.headers.get('content-type') || '';
+
+    let paperText = '';
+    let imageBase64 = '';
+    let mimeType = '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file') as File | null;
+      const rawTextInput = formData.get('text') as string | null;
+
+      if (rawTextInput) {
+        paperText = rawTextInput;
+      } else if (file) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+          try {
+            const pdfData = await pdfParse(buffer);
+            paperText = pdfData.text;
+          } catch (pdfErr: any) {
+            console.error('PDF Parsing Error:', pdfErr);
+            return NextResponse.json(
+              { success: false, error: `Failed to parse PDF file: ${pdfErr.message}` },
+              { status: 400 }
+            );
+          }
+        } else if (file.type.startsWith('image/')) {
+          imageBase64 = buffer.toString('base64');
+          mimeType = file.type;
+        } else {
+          paperText = buffer.toString('utf-8');
+        }
+      }
+    } else {
+      const jsonBody = await req.json().catch(() => ({}));
+      paperText = jsonBody.text || '';
+      imageBase64 = jsonBody.imageBase64 || '';
+      mimeType = jsonBody.mimeType || 'image/jpeg';
+    }
+
+    if (!paperText && !imageBase64) {
+      return NextResponse.json(
+        { success: false, error: 'No question paper text, PDF, or image file provided.' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch models available for this API key dynamically
+    let availableModels: string[] = [];
+    try {
+      const modelsList = await groq.models.list();
+      availableModels = modelsList.data.map((m: any) => m.id);
+    } catch (e: any) {
+      console.warn('Could not fetch models list directly:', e);
+    }
+
+    const candidateModels = availableModels.length > 0
+      ? availableModels
+      : (imageBase64
+          ? ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview']
+          : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']);
+
+    let rawResponseText = '';
+    let selectedModel = '';
+    let lastErr: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        let messages: any[] = [];
+        if (imageBase64) {
+          const imageUrl = imageBase64.startsWith('data:')
+            ? imageBase64
+            : `data:${mimeType};base64,${imageBase64}`;
+
+          messages = [
+            { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Extract all questions from this printed question paper image according to instructions.' },
+                { type: 'image_url', image_url: { url: imageUrl } },
+              ],
+            },
+          ];
+        } else {
+          messages = [
+            { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+            {
+              role: 'user',
+              content: `Extract all questions from the following printed question paper text:\n\n${paperText}`,
+            },
+          ];
+        }
+
+        const completion = await groq.chat.completions.create({
+          messages,
+          model: modelName,
+          temperature: 0.1,
+          response_format: { type: 'json_object' },
+        });
+
+        rawResponseText = completion.choices[0]?.message?.content || '{}';
+        selectedModel = modelName;
+        break; // Success!
+      } catch (err: any) {
+        lastErr = err;
+        console.warn(`Model ${modelName} extraction attempt error:`, err.message || err);
+      }
+    }
+
+    if (!rawResponseText) {
+      return NextResponse.json(
+        { success: false, error: lastErr?.message || 'Question extraction failed with available Groq models.' },
+        { status: 500 }
+      );
+    }
+
+    let parsedResult: any = {};
+    try {
+      parsedResult = JSON.parse(rawResponseText);
+    } catch (parseErr) {
+      const cleanedText = rawResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedResult = JSON.parse(cleanedText);
+    }
+
+    const rawQuestions = Array.isArray(parsedResult.questions)
+      ? parsedResult.questions
+      : Array.isArray(parsedResult)
+      ? parsedResult
+      : [];
+
+    const questions = rawQuestions.map((q: any, idx: number) => ({
+      question_number: String(q.question_number || q.number || `Q${idx + 1}`),
+      question_text: String(q.question_text || q.text || ''),
+      order_index: typeof q.order_index === 'number' ? q.order_index : idx,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      questions_count: questions.length,
+      questions,
+      model_used: selectedModel,
+      timestamp: new Date().toISOString(),
+    });
+
+  } catch (error: any) {
+    console.error('Question Extraction Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to extract questions.' },
+      { status: 500 }
+    );
+  }
+}
