@@ -73,6 +73,14 @@ function normalizeQuestionKey(raw: string | null | undefined): string {
 }
 
 /**
+ * Rounds marks strictly to whole integers or .5 steps (e.g. 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5).
+ */
+function roundToHalfOrWhole(val: number, maxMarks: number): number {
+  const clamped = Math.max(0, Math.min(maxMarks, val));
+  return Math.round(clamped * 2) / 2;
+}
+
+/**
  * Evaluates the WHOLE complete aggregated answer for Grading, Marks, Match % and AI Feedback.
  */
 async function analyzeWholeAnswerMatchAndGrading(
@@ -97,11 +105,12 @@ async function analyzeWholeAnswerMatchAndGrading(
 
   if (groq) {
     const candidateTextModels = [
-      'llama-3.3-70b-specdec',
-      'llama-3.1-70b-versatile',
-      'llama3-70b-8192',
-      'mixtral-8x7b-32768',
+      'llama-3.3-70b-versatile',
       'llama-3.1-8b-instant',
+      'llama3-70b-8192',
+      'llama3-8b-8192',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it',
     ];
 
     const prompt = `You are an expert academic examiner and automated grading assistant.
@@ -114,17 +123,17 @@ QUESTION PROMPT:
 STUDENT COMPLETE TRANSCRIPTION (Across all pages):
 "${completeAnswerText}"
 
-GRADING TASK:
+GRADING TASK & CRITICAL MARKING RULE:
 1. Calculate a strict, accurate Match Percentage (integer 50-100) representing how closely the answer addresses the question.
 2. Evaluate status: "correct" (fully accurate), "partially_correct" (partially accurate or missing some points), or "incorrect".
-3. Award Marks out of ${maxMarks} (number, e.g. ${maxMarks >= 5 ? 4.5 : maxMarks}).
+3. Award Marks out of ${maxMarks}. CRITICAL RULE: Marks MUST be given ONLY as a whole integer or ending in .5 (e.g. 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5). Never use arbitrary decimals like .1, .2, .3, .4, .6, .7, .8, .9.
 4. Provide concise, clear AI feedback (1-2 sentences) explaining strengths and missing concepts.
 
 STRICT JSON OUTPUT FORMAT:
 {
   "match_percentage": 92,
   "evaluation": "correct",
-  "marks_awarded": ${maxMarks >= 5 ? 4.5 : maxMarks},
+  "marks_awarded": ${maxMarks >= 5 ? 4.5 : Math.round(maxMarks * 2) / 2},
   "ai_feedback": "Detailed feedback text..."
 }`;
 
@@ -145,7 +154,8 @@ STRICT JSON OUTPUT FORMAT:
           ? parsed.evaluation
           : match_percentage > 85 ? 'correct' : match_percentage > 65 ? 'partially_correct' : 'incorrect') as 'correct' | 'partially_correct' | 'incorrect';
 
-        const awarded = Math.min(maxMarks, Math.max(0, Number(parsed.marks_awarded) || Math.round((match_percentage / 100) * maxMarks * 10) / 10));
+        const rawAwarded = Number(parsed.marks_awarded) || ((match_percentage / 100) * maxMarks);
+        const awarded = roundToHalfOrWhole(rawAwarded, maxMarks);
         const feedback = String(parsed.ai_feedback || 'Answer demonstrates understanding of core concepts.').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
         return {
@@ -160,7 +170,7 @@ STRICT JSON OUTPUT FORMAT:
     }
   }
 
-  // Fallback heuristic scoring
+  // Fallback heuristic scoring with whole or .5 mark rounding
   const wordCount = completeAnswerText.split(/\s+/).length;
   let match_percentage = 85;
   if (wordCount > 60) match_percentage = 94;
@@ -168,7 +178,8 @@ STRICT JSON OUTPUT FORMAT:
   else if (wordCount > 15) match_percentage = 70;
 
   const evaluation: 'correct' | 'partially_correct' = match_percentage >= 85 ? 'correct' : 'partially_correct';
-  const marks_awarded = Math.round((match_percentage / 100) * maxMarks * 10) / 10;
+  const rawMarks = (match_percentage / 100) * maxMarks;
+  const marks_awarded = roundToHalfOrWhole(rawMarks, maxMarks);
   const ai_feedback = `Student answer covers key concepts mentioned in question prompt. Transcribed ${wordCount} words across answer pages.`;
 
   return {
