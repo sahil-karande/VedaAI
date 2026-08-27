@@ -993,10 +993,14 @@ export default function Home() {
           <div className="relative">
             <button 
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF] cursor-pointer"
+              className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF] cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-full bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-bold text-xs">
-                {userProfile.initials}
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-[#FF5722] via-[#FF8A65] to-[#FFCC80] shadow-sm group-hover:scale-105 transition">
+                <img 
+                  src="/student-avatar.jpg" 
+                  alt={userProfile.name} 
+                  className="w-8 h-8 rounded-full object-cover border border-white" 
+                />
               </div>
               <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">{userProfile.name}</span>
               <ChevronDown className="w-4 h-4 text-[#888077] hidden md:inline" />
@@ -1040,8 +1044,12 @@ export default function Home() {
           <div className="p-5 flex flex-col gap-6">
             {/* VedaAI Logo Header */}
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveNav('exams')}>
-              <div className="w-9 h-9 rounded-xl bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-black text-lg tracking-widest shrink-0 shadow-md">
-                V
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-[#FF5722] via-[#FF8A65] to-[#FFCC80] shadow-md shrink-0">
+                <img 
+                  src="/student-avatar.jpg" 
+                  alt="VedaAI Student Logo" 
+                  className="w-9 h-9 rounded-full object-cover border border-white" 
+                />
               </div>
               {!sidebarCollapsed && (
                 <div className="flex flex-col">
@@ -1100,7 +1108,9 @@ export default function Home() {
                   activeNav === 'exams' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF] shadow-sm' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
                 }`}
               >
-                <GraduationCap className={`w-4 h-4 shrink-0 ${activeNav === 'exams' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
+                <div className="w-5 h-5 rounded-full overflow-hidden border border-[#FF5722] shrink-0 p-0.5 bg-gradient-to-tr from-[#FF5722] to-[#FF8A65]">
+                  <img src="/student-avatar.jpg" alt="Exams Avatar" className="w-full h-full object-cover rounded-full" />
+                </div>
                 {!sidebarCollapsed && <span>Exams</span>}
               </button>
 
@@ -1586,8 +1596,23 @@ export default function Home() {
                 <div className="flex flex-col gap-10 max-w-4xl mx-auto w-full py-6">
                   {/* Hero Header */}
                   <div className="text-center flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-full bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center mb-2 shadow-sm animate-float">
-                      <GraduationCap className="w-8 h-8 text-[#FF5722]" />
+                    {/* Beautiful Circular Boundary 3D Student Avatar Photo */}
+                    <div className="relative mb-3 group cursor-pointer animate-float">
+                      {/* Outer Glowing Gradient Ring Boundary */}
+                      <div className="p-1.5 rounded-full bg-gradient-to-tr from-[#FF5722] via-[#FF8A65] to-[#FFCC80] shadow-xl ring-4 ring-[#FF5722]/20 transition duration-300 group-hover:scale-105 group-hover:rotate-1">
+                        {/* Circular Image Container */}
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-white shadow-inner bg-[#FFF1EC] flex items-center justify-center">
+                          <img
+                            src="/student-avatar.jpg"
+                            alt="VedaAI Student Avatar"
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        </div>
+                      </div>
+                      {/* Glowing A+ Badge Accent */}
+                      <div className="absolute -bottom-1 -right-1 px-2.5 py-0.5 rounded-full bg-[#FF5722] text-white flex items-center justify-center text-xs font-black border-2 border-white shadow-md">
+                        A+
+                      </div>
                     </div>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1E1E1E] tracking-tight leading-tight">
                       Upload <span className="text-[#FF5722] relative inline-block">
