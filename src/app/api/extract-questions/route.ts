@@ -36,11 +36,17 @@ export async function POST(req: NextRequest) {
     let paperText = '';
     let imageBase64 = '';
     let mimeType = '';
+    let pageImages: string[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
       const rawTextInput = formData.get('text') as string | null;
+      const pageImagesInput = formData.get('pageImages') as string | null;
+
+      if (pageImagesInput) {
+        try { pageImages = JSON.parse(pageImagesInput); } catch (e) {}
+      }
 
       if (rawTextInput) {
         paperText = rawTextInput;
@@ -52,10 +58,6 @@ export async function POST(req: NextRequest) {
             paperText = pdfData.text;
           } catch (pdfErr: any) {
             console.error('PDF Parsing Error:', pdfErr);
-            return NextResponse.json(
-              { success: false, error: `Failed to parse PDF file: ${pdfErr.message}` },
-              { status: 400 }
-            );
           }
         } else if (file.type.startsWith('image/')) {
           imageBase64 = buffer.toString('base64');
@@ -69,9 +71,14 @@ export async function POST(req: NextRequest) {
       paperText = jsonBody.text || '';
       imageBase64 = jsonBody.imageBase64 || '';
       mimeType = jsonBody.mimeType || 'image/jpeg';
+      pageImages = Array.isArray(jsonBody.pageImages) ? jsonBody.pageImages : [];
     }
 
-    if (!paperText && !imageBase64) {
+    if (pageImages.length > 0 && !imageBase64) {
+      imageBase64 = pageImages[0];
+    }
+
+    if (!paperText && !imageBase64 && pageImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No question paper text, PDF, or image file provided.' },
         { status: 400 }
@@ -87,11 +94,9 @@ export async function POST(req: NextRequest) {
       console.warn('Could not fetch models list directly:', e);
     }
 
-    const candidateModels = availableModels.length > 0
-      ? availableModels
-      : (imageBase64
-          ? ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview']
-          : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']);
+    const candidateModels = (imageBase64 || pageImages.length > 0)
+      ? ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-instruct']
+      : ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
     let rawResponseText = '';
     let selectedModel = '';
@@ -100,20 +105,22 @@ export async function POST(req: NextRequest) {
     for (const modelName of candidateModels) {
       try {
         let messages: any[] = [];
-        if (imageBase64) {
-          const imageUrl = imageBase64.startsWith('data:')
-            ? imageBase64
-            : `data:${mimeType};base64,${imageBase64}`;
+        if (imageBase64 || pageImages.length > 0) {
+          const contentList: any[] = [
+            { type: 'text', text: 'Extract all questions from this printed question paper image according to instructions.' },
+          ];
+
+          const imagesToProcess = pageImages.length > 0 ? pageImages.slice(0, 3) : [imageBase64];
+          imagesToProcess.forEach((imgStr) => {
+            const imageUrl = imgStr.startsWith('data:')
+              ? imgStr
+              : `data:${mimeType || 'image/png'};base64,${imgStr}`;
+            contentList.push({ type: 'image_url', image_url: { url: imageUrl } });
+          });
 
           messages = [
             { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Extract all questions from this printed question paper image according to instructions.' },
-                { type: 'image_url', image_url: { url: imageUrl } },
-              ],
-            },
+            { role: 'user', content: contentList },
           ];
         } else {
           messages = [
@@ -126,7 +133,7 @@ export async function POST(req: NextRequest) {
         }
 
         const completion = await groq.chat.completions.create({
-          messages,
+          messages: messages as any,
           model: modelName,
           temperature: 0.1,
           response_format: { type: 'json_object' },

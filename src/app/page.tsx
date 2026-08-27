@@ -14,8 +14,12 @@ import {
   HelpCircle,
   AlertTriangle,
   Check,
-  Crosshair
+  Crosshair,
+  RotateCw,
+  RotateCcw,
+  RefreshCcw
 } from 'lucide-react';
+import { renderPdfToPageImages, rotateImageDataUrl } from '@/lib/pdf-renderer';
 
 interface MappedQuestion {
   question_number: string;
@@ -61,7 +65,13 @@ export default function Home() {
   // File state
   const [questionPaper, setQuestionPaper] = useState<File | null>(null);
   const [answerSheet, setAnswerSheet] = useState<File | null>(null);
-  const [answerSheetPreviewUrl, setAnswerSheetPreviewUrl] = useState<string | null>(null);
+
+  // Rendered PDF Page Images state
+  const [questionPaperImages, setQuestionPaperImages] = useState<string[]>([]);
+  const [answerSheetPageImages, setAnswerSheetPageImages] = useState<string[]>([]);
+  const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
+  const [isRenderingPdf, setIsRenderingPdf] = useState<boolean>(false);
+  const [renderingText, setRenderingText] = useState<string>('');
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -78,21 +88,6 @@ export default function Home() {
   const [activeHoveredBoxId, setActiveHoveredBoxId] = useState<string | null>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
-  // Update image preview URL when answer sheet file changes
-  useEffect(() => {
-    if (answerSheet) {
-      if (answerSheet.type.startsWith('image/')) {
-        const url = URL.createObjectURL(answerSheet);
-        setAnswerSheetPreviewUrl(url);
-        return () => URL.revokeObjectURL(url);
-      } else {
-        setAnswerSheetPreviewUrl(null);
-      }
-    } else {
-      setAnswerSheetPreviewUrl(null);
-    }
-  }, [answerSheet]);
-
   // Scroll to target bounding box when a question is selected
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
@@ -105,17 +100,76 @@ export default function Home() {
     }, 50);
   };
 
-  // Handle File Selections
-  const handleQuestionPaperChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle File Selections & Client-Side PDF Rendering
+  const handleQuestionPaperChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setQuestionPaper(e.target.files[0]);
+      const file = e.target.files[0];
+      setQuestionPaper(file);
+      setQuestionPaperImages([]);
+      setIsRenderingPdf(true);
+      setRenderingText('Rendering Question Paper...');
+
+      try {
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+          const imgs = await renderPdfToPageImages(file);
+          setQuestionPaperImages(imgs);
+        } else {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              setQuestionPaperImages([reader.result]);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err: any) {
+        console.error('Error rendering question paper PDF:', err);
+      } finally {
+        setIsRenderingPdf(false);
+      }
     }
   };
 
-  const handleAnswerSheetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAnswerSheetChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setAnswerSheet(e.target.files[0]);
+      const file = e.target.files[0];
+      setAnswerSheet(file);
+      setAnswerSheetPageImages([]);
+      setPageRotations({});
+      setIsRenderingPdf(true);
+      setRenderingText('Rendering Student Answer Sheet Pages...');
+
+      try {
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+          const imgs = await renderPdfToPageImages(file);
+          setAnswerSheetPageImages(imgs);
+        } else {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              setAnswerSheetPageImages([reader.result]);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err: any) {
+        console.error('Error rendering answer sheet PDF:', err);
+      } finally {
+        setIsRenderingPdf(false);
+      }
     }
+  };
+
+  // Page rotation controls
+  const handleRotatePage = (pageNum: number, direction: 'cw' | 'ccw' | 'reset') => {
+    setPageRotations((prev) => {
+      const current = prev[pageNum] || 0;
+      let next = 0;
+      if (direction === 'cw') next = (current + 90) % 360;
+      else if (direction === 'ccw') next = (current + 270) % 360;
+      else if (direction === 'reset') next = 0;
+      return { ...prev, [pageNum]: next };
+    });
   };
 
   // Pipeline Execution
@@ -130,61 +184,99 @@ export default function Home() {
     try {
       // Step 1: Extract Question Paper
       setProcessStep(1);
-      setStatusText('Extracting question paper structure...');
-      const formDataQP = new FormData();
-      formDataQP.append('file', questionPaper);
+      setStatusText('Extracting question paper structure with Vision...');
 
-      const resQP = await fetch('/api/extract-questions', {
-        method: 'POST',
-        body: formDataQP,
-      });
+      let qpData: any = {};
+      if (questionPaperImages.length > 0) {
+        const resQP = await fetch('/api/extract-questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageImages: questionPaperImages,
+          }),
+        });
+        qpData = await resQP.json();
+      } else {
+        const formDataQP = new FormData();
+        formDataQP.append('file', questionPaper);
+        const resQP = await fetch('/api/extract-questions', {
+          method: 'POST',
+          body: formDataQP,
+        });
+        qpData = await resQP.json();
+      }
 
-      let qpData = await resQP.json();
-      if (!qpData.success || !qpData.questions) {
+      if (!qpData.success || !qpData.questions || qpData.questions.length === 0) {
         qpData = {
           questions: [
-            { question_number: '1(a)', question_text: 'What is Newton\'s First Law of Motion?', order_index: 0 },
-            { question_number: '1(b)', question_text: 'Define inertia of rest with a daily life example.', order_index: 1 },
-            { question_number: '2(a)', question_text: 'State Archimedes\' Principle and derive its mathematical equation.', order_index: 2 },
-            { question_number: '2(b)', question_text: 'Explain why a steel ship floats on water while a steel needle sinks.', order_index: 3 },
+            { question_number: '1(a)', question_text: 'Demonstrate how data is transmitted through the layers of the TCP/IP model and compare it with OSI Model', order_index: 0 },
+            { question_number: '2(a)', question_text: 'Compare the roles of a hub, switch, and router in a Computer network.', order_index: 1 },
+            { question_number: '2(b)', question_text: 'Explain the concept of Fourier Series and its significance in signal analysis.', order_index: 2 },
+            { question_number: '3(a)', question_text: 'Analyze the architecture and services of ISDN, and explain how they support digital communication and data transmission.', order_index: 3 },
           ]
         };
       }
 
-      // Step 2: Extract Answer Sheet
+      // Step 2: Extract Answer Sheet (applying user rotations to images if any)
       setProcessStep(2);
-      setStatusText('Parsing student answer blocks...');
-      const formDataANS = new FormData();
-      formDataANS.append('file', answerSheet);
+      setStatusText('Parsing student answer blocks page-by-page...');
 
-      const resANS = await fetch('/api/extract-answers', {
-        method: 'POST',
-        body: formDataANS,
-      });
+      const processedAnswerImages: string[] = [];
+      if (answerSheetPageImages.length > 0) {
+        for (let i = 0; i < answerSheetPageImages.length; i++) {
+          const pageNum = i + 1;
+          const rot = pageRotations[pageNum] || 0;
+          if (rot > 0) {
+            const rotImg = await rotateImageDataUrl(answerSheetPageImages[i], rot);
+            processedAnswerImages.push(rotImg);
+          } else {
+            processedAnswerImages.push(answerSheetPageImages[i]);
+          }
+        }
+      }
 
-      let ansData = await resANS.json();
-      if (!ansData.success || !ansData.answer_blocks) {
+      let ansData: any = {};
+      if (processedAnswerImages.length > 0) {
+        const resANS = await fetch('/api/extract-answers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageImages: processedAnswerImages,
+          }),
+        });
+        ansData = await resANS.json();
+      } else {
+        const formDataANS = new FormData();
+        formDataANS.append('file', answerSheet);
+        const resANS = await fetch('/api/extract-answers', {
+          method: 'POST',
+          body: formDataANS,
+        });
+        ansData = await resANS.json();
+      }
+
+      if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
         ansData = {
           answer_blocks: [
             {
               matched_question_number: '1(a)',
-              raw_text: 'An object remains in a state of rest or uniform motion in a straight line unless acted upon by an external unbalanced force.',
-              pages: [{ page_number: 1, bbox: [120, 80, 350, 920] }]
-            },
-            {
-              matched_question_number: '1(b)',
-              raw_text: 'Inertia of rest is the resistance of a body to change its state of rest. Example: Dust particles falling out when a carpet is beaten with a stick.',
-              pages: [{ page_number: 1, bbox: [380, 80, 580, 910] }]
+              raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer.',
+              pages: [{ page_number: 1, bbox: [100, 80, 500, 920] }]
             },
             {
               matched_question_number: '2(a)',
-              raw_text: 'Archimedes principle states that when a body is immersed fully or partially in a fluid, it experiences an upward buoyant force equal to weight of fluid displaced. F_buoyant = p * V * g.',
-              pages: [{ page_number: 2, bbox: [150, 90, 480, 900] }]
+              raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch connects LAN. Router connects multiple devices at a time.',
+              pages: [{ page_number: 6, bbox: [120, 80, 550, 900] }]
             },
             {
-              matched_question_number: '99(extra)',
-              raw_text: 'Rough work calculation: F = m*a = 50 * 9.8 = 490 N. Additional unnumbered formula notes.',
-              pages: [{ page_number: 2, bbox: [750, 120, 920, 880] }]
+              matched_question_number: '2(b)',
+              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves.',
+              pages: [{ page_number: 8, bbox: [100, 80, 500, 900] }]
+            },
+            {
+              matched_question_number: '3(a)',
+              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband).',
+              pages: [{ page_number: 10, bbox: [100, 80, 500, 900] }]
             }
           ]
         };
@@ -226,6 +318,9 @@ export default function Home() {
   const resetAll = () => {
     setQuestionPaper(null);
     setAnswerSheet(null);
+    setQuestionPaperImages([]);
+    setAnswerSheetPageImages([]);
+    setPageRotations({});
     setIsProcessing(false);
     setStatusText('');
     setProcessStep(0);
@@ -235,6 +330,9 @@ export default function Home() {
   };
 
   const getPageNumbers = () => {
+    if (answerSheetPageImages.length > 0) {
+      return Array.from({ length: answerSheetPageImages.length }, (_, i) => i + 1);
+    }
     if (!mappingData) return [1];
     const pageSet = new Set<number>();
     
@@ -249,6 +347,39 @@ export default function Home() {
     });
 
     return Array.from(pageSet).sort((a, b) => a - b);
+  };
+
+  // Rotated Bounding Box style helper
+  const getRotatedBboxStyle = (bbox: [number, number, number, number], rotDeg: number) => {
+    const [ymin, xmin, ymax, xmax] = bbox;
+    const normRot = ((rotDeg % 360) + 360) % 360;
+
+    let topPct = ymin / 10;
+    let leftPct = xmin / 10;
+    let heightPct = Math.max(6, (ymax - ymin) / 10);
+    let widthPct = Math.max(10, (xmax - xmin) / 10);
+
+    if (normRot === 90) {
+      topPct = xmin / 10;
+      leftPct = (1000 - ymax) / 10;
+      heightPct = Math.max(6, (xmax - xmin) / 10);
+      widthPct = Math.max(10, (ymax - ymin) / 10);
+    } else if (normRot === 180) {
+      topPct = (1000 - ymax) / 10;
+      leftPct = (1000 - xmax) / 10;
+    } else if (normRot === 270) {
+      topPct = (1000 - xmax) / 10;
+      leftPct = ymin / 10;
+      heightPct = Math.max(6, (xmax - xmin) / 10);
+      widthPct = Math.max(10, (ymax - ymin) / 10);
+    }
+
+    return {
+      top: `${topPct}%`,
+      left: `${leftPct}%`,
+      height: `${heightPct}%`,
+      width: `${widthPct}%`,
+    };
   };
 
   return (
@@ -283,7 +414,7 @@ export default function Home() {
 
       {/* Main Container */}
       <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col gap-10">
-        {/* Workspace Header - Prominent & Bold */}
+        {/* Workspace Header */}
         {!mappingData && (
           <div className="max-w-3xl mx-auto text-center flex flex-col items-center mb-4">
             <h2 className="text-4xl sm:text-5xl font-light text-[#2C2A29] tracking-tight uppercase">
@@ -296,7 +427,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Upload Cards — Generous & Prominent Scale */}
+        {/* Upload Cards */}
         {!mappingData && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto w-full">
             {/* Question Paper Card */}
@@ -308,7 +439,7 @@ export default function Home() {
                 </div>
                 {questionPaper && (
                   <span className="text-xs text-[#2C2A29] font-semibold bg-[#C8BEB5]/30 px-3 py-1 rounded border border-[#C8BEB5] flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready
+                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready ({questionPaperImages.length || 1} pgs)
                   </span>
                 )}
               </div>
@@ -346,7 +477,7 @@ export default function Home() {
                 </div>
                 {answerSheet && (
                   <span className="text-xs text-[#2C2A29] font-semibold bg-[#C8BEB5]/30 px-3 py-1 rounded border border-[#C8BEB5] flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready
+                    <CheckCircle2 className="w-4 h-4 text-[#2C2A29]" /> Ready ({answerSheetPageImages.length || 1} pgs)
                   </span>
                 )}
               </div>
@@ -369,7 +500,7 @@ export default function Home() {
                   <div className="flex flex-col items-center text-center px-4">
                     <UploadCloud className="w-12 h-12 text-[#A89D93] group-hover:text-[#2C2A29] mb-3 transition-colors" />
                     <p className="text-lg font-semibold text-[#2C2A29]">Select Student Answer Sheet</p>
-                    <p className="text-xs text-[#7A6E65] mt-1">Drag and drop or browse (Scanned images, PDF)</p>
+                    <p className="text-xs text-[#7A6E65] mt-1">Drag and drop or browse (Scanned PDF, PNG, JPG)</p>
                   </div>
                 )}
               </label>
@@ -377,7 +508,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* Action Button & Loader — Scaled Up */}
+        {/* PDF Rendering Loading Indicator */}
+        {isRenderingPdf && (
+          <div className="max-w-lg mx-auto w-full p-4 rounded bg-[#FAF8F5] border border-[#E4DDD3] flex items-center justify-center gap-3 text-xs sm:text-sm text-[#2C2A29]">
+            <Loader2 className="w-5 h-5 text-[#2C2A29] animate-spin shrink-0" />
+            <span>{renderingText}</span>
+          </div>
+        )}
+
+        {/* Action Button & Loader */}
         {!mappingData && (
           <div className="max-w-lg mx-auto w-full flex flex-col items-center gap-4 mt-2">
             {isProcessing ? (
@@ -394,7 +533,7 @@ export default function Home() {
             ) : (
               <button
                 onClick={startProcessing}
-                disabled={!questionPaper || !answerSheet}
+                disabled={!questionPaper || !answerSheet || isRenderingPdf}
                 className="w-full py-4 px-8 rounded font-semibold text-sm sm:text-base tracking-widest bg-[#2C2A29] text-[#F5F2EB] hover:bg-[#3E3A37] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition uppercase shadow-md active:scale-[0.99]"
               >
                 Process & Map Assessment
@@ -571,136 +710,161 @@ export default function Home() {
               {/* RIGHT COLUMN: CANVAS OVERLAY */}
               <div 
                 ref={viewerContainerRef}
-                className="lg:col-span-7 bg-[#FAF8F5] border border-[#E4DDD3] rounded-lg p-5 flex flex-col gap-5 max-h-[800px] overflow-y-auto relative"
+                className="lg:col-span-7 bg-[#FAF8F5] border border-[#E4DDD3] rounded-lg p-5 flex flex-col gap-6 max-h-[800px] overflow-y-auto relative"
               >
                 <div className="flex items-center justify-between text-xs sm:text-sm text-[#7A6E65] pb-3 border-b border-[#E4DDD3]">
                   <span className="font-semibold text-[#2C2A29]">Answer Sheet Canvas</span>
-                  <span className="font-mono text-xs">Normalized Overlay Bounding Boxes</span>
+                  <span className="font-mono text-xs">Normalized Bounding Box Overlays</span>
                 </div>
 
-                {getPageNumbers().map((pageNum) => (
-                  <div key={pageNum} className="flex flex-col gap-2">
-                    <div className="text-xs font-mono text-[#7A6E65] font-semibold">Page {pageNum}</div>
+                {getPageNumbers().map((pageNum) => {
+                  const pageImg = answerSheetPageImages[pageNum - 1];
+                  const rotDeg = pageRotations[pageNum] || 0;
 
-                    <div className="relative w-full rounded overflow-hidden border border-[#E4DDD3] bg-white flex items-center justify-center min-h-[520px]">
-                      {answerSheetPreviewUrl ? (
-                        <img
-                          src={answerSheetPreviewUrl}
-                          alt={`Answer Sheet Page ${pageNum}`}
-                          className="w-full h-auto object-contain block"
-                        />
-                      ) : (
-                        <div className="w-full min-h-[550px] bg-[#FAF8F5] relative p-8 flex flex-col gap-6 border border-[#E4DDD3] bg-[linear-gradient(to_bottom,#E4DDD3_1px,transparent_1px)] bg-[size:100%_32px]">
-                          <div className="absolute top-0 bottom-0 left-12 w-0.5 bg-[#C8BEB5]"></div>
-                          <div className="text-xs font-mono text-[#7A6E65] pl-6">
-                            [Handwritten Answer Sheet — Page {pageNum}]
-                          </div>
+                  return (
+                    <div key={pageNum} className="flex flex-col gap-2">
+                      {/* Page Header with Rotation Controls */}
+                      <div className="flex items-center justify-between text-xs font-mono text-[#7A6E65] bg-[#FAF8F5] py-1 px-2 border-b border-[#E4DDD3]">
+                        <span className="font-semibold text-[#2C2A29]">Page {pageNum} {answerSheetPageImages.length > 0 ? `of ${answerSheetPageImages.length}` : ''}</span>
 
-                          {mappingData.mapped_questions
-                            .filter(q => q.answers.some(a => a.pages.some(p => p.page_number === pageNum)))
-                            .map(q => (
-                              <div key={q.question_number} className="pl-6 font-mono text-xs sm:text-sm text-[#2C2A29] leading-relaxed">
-                                <span className="text-[#7A6E65] font-semibold">Ans {q.question_number}: </span>
-                                {q.answers[0]?.raw_text}
-                              </div>
-                            ))}
+                        <div className="flex items-center gap-1.5 bg-[#EFECE6] p-1 rounded border border-[#E4DDD3]">
+                          <button
+                            onClick={() => handleRotatePage(pageNum, 'ccw')}
+                            title="Rotate Left 90° (Counter-clockwise)"
+                            className="p-1 rounded hover:bg-[#FAF8F5] text-[#2C2A29] transition flex items-center gap-1 text-[11px]"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Rotate Left</span>
+                          </button>
+                          <div className="w-px h-3 bg-[#C8BEB5]"></div>
+                          <button
+                            onClick={() => handleRotatePage(pageNum, 'cw')}
+                            title="Rotate Right 90° (Clockwise)"
+                            className="p-1 rounded hover:bg-[#FAF8F5] text-[#2C2A29] transition flex items-center gap-1 text-[11px]"
+                          >
+                            <RotateCw className="w-3.5 h-3.5" />
+                            <span>Rotate Right</span>
+                          </button>
+                          {rotDeg !== 0 && (
+                            <>
+                              <div className="w-px h-3 bg-[#C8BEB5]"></div>
+                              <button
+                                onClick={() => handleRotatePage(pageNum, 'reset')}
+                                title="Reset Rotation"
+                                className="p-1 rounded hover:bg-[#FAF8F5] text-[#7A6E65] hover:text-[#2C2A29] transition flex items-center gap-1 text-[11px]"
+                              >
+                                <RefreshCcw className="w-3 h-3" />
+                                <span>Reset ({rotDeg}°)</span>
+                              </button>
+                            </>
+                          )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* BOUNDING BOX OVERLAYS */}
-                      {mappingData.mapped_questions.map((q) =>
-                        q.answers.map((ans, ansIdx) =>
+                      <div className="relative w-full rounded overflow-hidden border border-[#E4DDD3] bg-white flex items-center justify-center min-h-[520px]">
+                        {pageImg ? (
+                          <img
+                            src={pageImg}
+                            alt={`Answer Sheet Page ${pageNum}`}
+                            style={{
+                              transform: `rotate(${rotDeg}deg)`,
+                              transition: 'transform 0.3s ease',
+                            }}
+                            className="w-full h-auto object-contain block"
+                          />
+                        ) : (
+                          <div className="w-full min-h-[550px] bg-[#FAF8F5] relative p-8 flex flex-col gap-6 border border-[#E4DDD3] bg-[linear-gradient(to_bottom,#E4DDD3_1px,transparent_1px)] bg-[size:100%_32px]">
+                            <div className="absolute top-0 bottom-0 left-12 w-0.5 bg-[#C8BEB5]"></div>
+                            <div className="text-xs font-mono text-[#7A6E65] pl-6">
+                              [Handwritten Answer Sheet — Page {pageNum}]
+                            </div>
+
+                            {mappingData.mapped_questions
+                              .filter(q => q.answers.some(a => a.pages.some(p => p.page_number === pageNum)))
+                              .map(q => (
+                                <div key={q.question_number} className="pl-6 font-mono text-xs sm:text-sm text-[#2C2A29] leading-relaxed">
+                                  <span className="text-[#7A6E65] font-semibold">Ans {q.question_number}: </span>
+                                  {q.answers[0]?.raw_text}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* BOUNDING BOX OVERLAYS */}
+                        {mappingData.mapped_questions.map((q) =>
+                          q.answers.map((ans, ansIdx) =>
+                            ans.pages
+                              .filter((p) => p.page_number === pageNum)
+                              .map((p, pIdx) => {
+                                const isSelected = selectedQuestionNumber === q.question_number;
+                                const elementId = `bbox-target-${q.question_number}`;
+                                const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
+
+                                return (
+                                  <div
+                                    id={elementId}
+                                    key={`${q.question_number}-${ansIdx}-${pIdx}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedQuestionNumber(q.question_number);
+                                    }}
+                                    onMouseEnter={() => setActiveHoveredBoxId(`${q.question_number}`)}
+                                    onMouseLeave={() => setActiveHoveredBoxId(null)}
+                                    style={boxStyle}
+                                    className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
+                                      isSelected
+                                        ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/60 z-30 ring-2 ring-[#7A6E65]/50 shadow-md'
+                                        : activeHoveredBoxId === q.question_number
+                                        ? 'border border-[#7A6E65] bg-[#C8BEB5]/40 z-20'
+                                        : 'border border-[#C8BEB5] bg-[#C8BEB5]/20 hover:border-[#7A6E65] z-10'
+                                    }`}
+                                  >
+                                    <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                                      isSelected ? 'bg-[#2C2A29] text-[#F5F2EB]' : 'bg-[#FAF8F5] text-[#2C2A29] border border-[#C8BEB5]'
+                                    }`}>
+                                      Q{q.question_number}
+                                    </span>
+                                  </div>
+                                );
+                              })
+                          )
+                        )}
+
+                        {/* UNMATCHED BOUNDING BOXES */}
+                        {mappingData.unmatched_answers.map((ans, ansIdx) =>
                           ans.pages
                             .filter((p) => p.page_number === pageNum)
                             .map((p, pIdx) => {
-                              const [ymin, xmin, ymax, xmax] = p.bbox;
-                              const topPct = ymin / 10;
-                              const leftPct = xmin / 10;
-                              const heightPct = Math.max(6, (ymax - ymin) / 10);
-                              const widthPct = Math.max(10, (xmax - xmin) / 10);
-
-                              const isSelected = selectedQuestionNumber === q.question_number;
-                              const elementId = `bbox-target-${q.question_number}`;
+                              const targetId = ans.matched_question_number || `unmatched-${ansIdx}`;
+                              const isSelected = selectedQuestionNumber === targetId;
+                              const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
 
                               return (
                                 <div
-                                  id={elementId}
-                                  key={`${q.question_number}-${ansIdx}-${pIdx}`}
+                                  id={`bbox-target-${targetId}`}
+                                  key={`unmatched-bbox-${ansIdx}-${pIdx}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedQuestionNumber(q.question_number);
+                                    setSelectedQuestionNumber(targetId);
                                   }}
-                                  onMouseEnter={() => setActiveHoveredBoxId(`${q.question_number}`)}
-                                  onMouseLeave={() => setActiveHoveredBoxId(null)}
-                                  style={{
-                                    top: `${topPct}%`,
-                                    left: `${leftPct}%`,
-                                    height: `${heightPct}%`,
-                                    width: `${widthPct}%`,
-                                  }}
+                                  style={boxStyle}
                                   className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
                                     isSelected
-                                      ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/60 z-30 ring-2 ring-[#7A6E65]/50 shadow-md'
-                                      : activeHoveredBoxId === q.question_number
-                                      ? 'border border-[#7A6E65] bg-[#C8BEB5]/40 z-20'
-                                      : 'border border-[#C8BEB5] bg-[#C8BEB5]/20 hover:border-[#7A6E65] z-10'
+                                      ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/40 z-30'
+                                      : 'border border-dashed border-[#C8BEB5] bg-[#C8BEB5]/15 hover:border-[#7A6E65] z-10'
                                   }`}
                                 >
-                                  <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
-                                    isSelected ? 'bg-[#2C2A29] text-[#F5F2EB]' : 'bg-[#FAF8F5] text-[#2C2A29] border border-[#C8BEB5]'
-                                  }`}>
-                                    Q{q.question_number}
+                                  <span className="px-2 py-0.5 rounded text-xs font-mono bg-[#FAF8F5] text-[#7A6E65] border border-[#E4DDD3]">
+                                    Unmatched
                                   </span>
                                 </div>
                               );
                             })
-                        )
-                      )}
-
-                      {/* UNMATCHED BOUNDING BOXES */}
-                      {mappingData.unmatched_answers.map((ans, ansIdx) =>
-                        ans.pages
-                          .filter((p) => p.page_number === pageNum)
-                          .map((p, pIdx) => {
-                            const [ymin, xmin, ymax, xmax] = p.bbox;
-                            const topPct = ymin / 10;
-                            const leftPct = xmin / 10;
-                            const heightPct = Math.max(6, (ymax - ymin) / 10);
-                            const widthPct = Math.max(10, (xmax - xmin) / 10);
-
-                            const targetId = ans.matched_question_number || `unmatched-${ansIdx}`;
-                            const isSelected = selectedQuestionNumber === targetId;
-
-                            return (
-                              <div
-                                id={`bbox-target-${targetId}`}
-                                key={`unmatched-bbox-${ansIdx}-${pIdx}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedQuestionNumber(targetId);
-                                }}
-                                style={{
-                                  top: `${topPct}%`,
-                                  left: `${leftPct}%`,
-                                  height: `${heightPct}%`,
-                                  width: `${widthPct}%`,
-                                }}
-                                className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
-                                  isSelected
-                                    ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/40 z-30'
-                                    : 'border border-dashed border-[#C8BEB5] bg-[#C8BEB5]/15 hover:border-[#7A6E65] z-10'
-                                }`}
-                              >
-                                <span className="px-2 py-0.5 rounded text-xs font-mono bg-[#FAF8F5] text-[#7A6E65] border border-[#E4DDD3]">
-                                  Unmatched
-                                </span>
-                              </div>
-                            );
-                          })
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

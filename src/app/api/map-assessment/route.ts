@@ -86,8 +86,26 @@ export async function POST(req: NextRequest) {
       const normAnsKey = normalizeQuestionKey(ans.matched_question_number);
 
       if (normAnsKey && answersByQuestionKey.has(normAnsKey)) {
-        // Direct match found! Trusting LLM's question label prediction
+        // Direct match found!
         answersByQuestionKey.get(normAnsKey)!.push(ans);
+      } else if (normAnsKey) {
+        // Fallback matching: find closest matching registered question key
+        let matchedKey: string | null = null;
+        for (const [key] of Array.from(questionMap.entries())) {
+          if (key === normAnsKey || normAnsKey.endsWith(key) || key.endsWith(normAnsKey)) {
+            matchedKey = key;
+            break;
+          }
+        }
+
+        if (matchedKey && answersByQuestionKey.has(matchedKey)) {
+          answersByQuestionKey.get(matchedKey)!.push(ans);
+        } else {
+          unmatchedAnswers.push({
+            ...ans,
+            status: 'unmatched',
+          });
+        }
       } else {
         // Unmatched answer (label missing, null, or not in question paper)
         unmatchedAnswers.push({

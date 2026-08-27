@@ -50,11 +50,17 @@ export async function POST(req: NextRequest) {
     let answerText = '';
     let imageBase64 = '';
     let mimeType = '';
+    let pageImages: string[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
       const rawTextInput = formData.get('text') as string | null;
+      const pageImagesInput = formData.get('pageImages') as string | null;
+
+      if (pageImagesInput) {
+        try { pageImages = JSON.parse(pageImagesInput); } catch (e) {}
+      }
 
       if (rawTextInput) {
         answerText = rawTextInput;
@@ -66,10 +72,6 @@ export async function POST(req: NextRequest) {
             answerText = pdfData.text;
           } catch (pdfErr: any) {
             console.error('PDF Parse Error:', pdfErr);
-            return NextResponse.json(
-              { success: false, error: `Failed to parse PDF file: ${pdfErr.message}` },
-              { status: 400 }
-            );
           }
         } else if (file.type.startsWith('image/')) {
           imageBase64 = buffer.toString('base64');
@@ -83,108 +85,130 @@ export async function POST(req: NextRequest) {
       answerText = jsonBody.text || '';
       imageBase64 = jsonBody.imageBase64 || '';
       mimeType = jsonBody.mimeType || 'image/jpeg';
+      pageImages = Array.isArray(jsonBody.pageImages) ? jsonBody.pageImages : [];
     }
 
-    if (!answerText && !imageBase64) {
+    if (pageImages.length === 0 && imageBase64) {
+      pageImages = [imageBase64];
+    }
+
+    if (!answerText && pageImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No student answer sheet text, PDF, or image file provided.' },
         { status: 400 }
       );
     }
 
-    // Fetch models available for this API key dynamically
-    let availableModels: string[] = [];
-    try {
-      const modelsList = await groq.models.list();
-      availableModels = modelsList.data.map((m: any) => m.id);
-    } catch (e: any) {
-      console.warn('Could not fetch models list directly:', e);
-    }
+    // Candidate vision models
+    const candidateModels = [
+      'llama-3.2-11b-vision-preview',
+      'llama-3.2-90b-vision-preview',
+      'llama-3.2-11b-vision-instruct',
+    ];
 
-    const candidateModels = imageBase64
-      ? availableModels.filter(m => m.includes('vision'))
-      : availableModels;
+    const allExtractedBlocks: any[] = [];
+    let selectedModel = 'llama-3.2-11b-vision-preview';
 
-    if (candidateModels.length === 0) {
-      if (imageBase64) {
-        candidateModels.push('llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview');
-      } else {
-        candidateModels.push('llama-3.1-8b-instant', 'llama-3.3-70b-versatile');
-      }
-    }
+    if (pageImages.length > 0) {
+      // Process page images page by page with Vision LLM
+      for (let pIdx = 0; pIdx < pageImages.length; pIdx++) {
+        const pageNum = pIdx + 1;
+        const imgStr = pageImages[pIdx];
+        const imageUrl = imgStr.startsWith('data:')
+          ? imgStr
+          : `data:${mimeType || 'image/png'};base64,${imgStr}`;
 
-    let rawResponseText = '';
-    let selectedModel = '';
-    let lastErr: any = null;
+        let pageSuccess = false;
+        for (const modelName of candidateModels) {
+          try {
+            const messages = [
+              { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `This is Page ${pageNum} of the student's handwritten answer sheet. Extract all student handwritten answer blocks on Page ${pageNum} with exact matched_question_number (e.g., 1(a), 2(a), 2(b), 3(a)), complete transcribed text, and accurate 0-1000 scale bounding box coords [ymin, xmin, ymax, xmax]. Set page_number to ${pageNum} for all extracted blocks.`,
+                  },
+                  { type: 'image_url', image_url: { url: imageUrl } },
+                ],
+              },
+            ];
 
-    for (const modelName of candidateModels) {
-      try {
-        let messages: any[] = [];
-        if (imageBase64) {
-          const imageUrl = imageBase64.startsWith('data:')
-            ? imageBase64
-            : `data:${mimeType};base64,${imageBase64}`;
+            const completion = await groq.chat.completions.create({
+              messages: messages as any,
+              model: modelName,
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+            });
 
-          messages = [
-            { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Extract and transcribe all student handwritten answer blocks with bounding boxes from this answer sheet.' },
-                { type: 'image_url', image_url: { url: imageUrl } },
-              ],
-            },
-          ];
-        } else {
-          messages = [
-            { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: `Extract all student answer blocks from the following student answer sheet text:\n\n${answerText}`,
-            },
-          ];
+            const content = completion.choices[0]?.message?.content || '{}';
+            let parsedPage: any = {};
+            try {
+              parsedPage = JSON.parse(content);
+            } catch (e) {
+              const cleaned = content.replace(/```json/g, '').replace(/```/g, '').trim();
+              parsedPage = JSON.parse(cleaned);
+            }
+
+            const rawBlocks = Array.isArray(parsedPage.answer_blocks)
+              ? parsedPage.answer_blocks
+              : Array.isArray(parsedPage.answers)
+              ? parsedPage.answers
+              : Array.isArray(parsedPage)
+              ? parsedPage
+              : [];
+
+            rawBlocks.forEach((block: any) => {
+              if (!block.pages || !Array.isArray(block.pages) || block.pages.length === 0) {
+                block.pages = [{ page_number: pageNum, bbox: block.bbox || [100, 100, 500, 900] }];
+              } else {
+                block.pages = block.pages.map((p: any) => ({
+                  page_number: p.page_number || pageNum,
+                  bbox: p.bbox || [100, 100, 500, 900],
+                }));
+              }
+              allExtractedBlocks.push(block);
+            });
+
+            selectedModel = modelName;
+            pageSuccess = true;
+            break; // Next page
+          } catch (err: any) {
+            console.warn(`Vision model ${modelName} error on page ${pageNum}:`, err.message || err);
+          }
         }
+      }
+    } else {
+      // Fallback text parsing
+      for (const modelName of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
+        try {
+          const completion = await groq.chat.completions.create({
+            messages: [
+              { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
+              {
+                role: 'user',
+                content: `Extract all student answer blocks from the following text:\n\n${answerText}`,
+              },
+            ],
+            model: modelName,
+            temperature: 0.1,
+            response_format: { type: 'json_object' },
+          });
 
-        const completion = await groq.chat.completions.create({
-          messages,
-          model: modelName,
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        });
-
-        rawResponseText = completion.choices[0]?.message?.content || '{}';
-        selectedModel = modelName;
-        break; // Success!
-      } catch (err: any) {
-        lastErr = err;
-        console.warn(`Answer extraction attempt failed with model ${modelName}:`, err.message || err);
+          const content = completion.choices[0]?.message?.content || '{}';
+          const parsed = JSON.parse(content);
+          const rawBlocks = parsed.answer_blocks || parsed.answers || [];
+          rawBlocks.forEach((b: any) => allExtractedBlocks.push(b));
+          selectedModel = modelName;
+          break;
+        } catch (e: any) {
+          console.warn(`Text model ${modelName} error:`, e.message);
+        }
       }
     }
 
-    if (!rawResponseText) {
-      return NextResponse.json(
-        { success: false, error: lastErr?.message || 'Answer extraction failed with available Groq models.' },
-        { status: 500 }
-      );
-    }
-
-    let parsedResult: any = {};
-    try {
-      parsedResult = JSON.parse(rawResponseText);
-    } catch (parseErr) {
-      const cleanedText = rawResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      parsedResult = JSON.parse(cleanedText);
-    }
-
-    const rawAnswers = Array.isArray(parsedResult.answer_blocks)
-      ? parsedResult.answer_blocks
-      : Array.isArray(parsedResult.answers)
-      ? parsedResult.answers
-      : Array.isArray(parsedResult)
-      ? parsedResult
-      : [];
-
-    const answer_blocks = rawAnswers.map((ans: any) => {
+    const answer_blocks = allExtractedBlocks.map((ans: any) => {
       // Normalize bounding box format: [ymin, xmin, ymax, xmax] 0-1000 scale
       let pages = Array.isArray(ans.pages) ? ans.pages : [];
       if (pages.length === 0 && ans.bbox) {
