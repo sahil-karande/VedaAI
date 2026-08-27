@@ -1257,15 +1257,37 @@ export default function Home() {
                                 </div>
 
                                 {isExpanded && q.status === 'matched' && (
-                                  <div className="pt-2 border-t border-[#E8E5DF] flex flex-col gap-2 text-xs">
+                                  <div className="pt-2 border-t border-[#E8E5DF] flex flex-col gap-2.5 text-xs">
                                     <div className="flex items-center justify-between text-[11px] text-[#888077] font-mono">
-                                      <span>{q.match_percentage || 90}% Match</span>
-                                      <span>Answer Pages: {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).join(', ')}</span>
+                                      <span className="font-bold text-[#1E1E1E]">{q.match_percentage || 90}% Match</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span>Answer Pages:</span>
+                                        {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).map(pNum => (
+                                          <button
+                                            key={pNum}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setCurrentCanvasPage(pNum);
+                                            }}
+                                            className="px-2 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] font-bold border border-[#FF5722]/30 hover:bg-[#FF5722] hover:text-white transition cursor-pointer"
+                                            title={`Jump to Page ${pNum}`}
+                                          >
+                                            Page {pNum}
+                                          </button>
+                                        ))}
+                                      </div>
                                     </div>
+
+                                    {q.complete_raw_text && (
+                                      <div className="p-3 rounded-lg bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col gap-1 text-[11px] font-mono text-[#554F49]">
+                                        <span className="font-bold text-[#1E1E1E]">Full Aggregated Answer (Across Pages):</span>
+                                        <p className="whitespace-pre-wrap leading-relaxed">{q.complete_raw_text}</p>
+                                      </div>
+                                    )}
 
                                     {q.ai_feedback && (
                                       <div className="p-3 rounded-lg bg-[#FFF1EC] border border-[#FF5722]/20 text-[#1E1E1E] flex flex-col gap-1">
-                                        <span className="font-bold text-[11px] text-[#FF5722]">AI Feedback</span>
+                                        <span className="font-bold text-[11px] text-[#FF5722]">AI Feedback & Evaluation</span>
                                         <p className="text-xs leading-relaxed text-[#554F49]">{q.ai_feedback}</p>
                                       </div>
                                     )}

@@ -96,8 +96,15 @@ async function analyzeWholeAnswerMatchAndGrading(
   }
 
   if (groq) {
-    try {
-      const prompt = `You are an expert academic examiner and automated grading assistant.
+    const candidateTextModels = [
+      'llama-3.3-70b-specdec',
+      'llama-3.1-70b-versatile',
+      'llama3-70b-8192',
+      'mixtral-8x7b-32768',
+      'llama-3.1-8b-instant',
+    ];
+
+    const prompt = `You are an expert academic examiner and automated grading assistant.
 Analyze this student's COMPLETE handwritten exam answer against the Question Prompt.
 
 QUESTION PROMPT:
@@ -121,32 +128,35 @@ STRICT JSON OUTPUT FORMAT:
   "ai_feedback": "Detailed feedback text..."
 }`;
 
-      const completion = await groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-      });
+    for (const modelName of candidateTextModels) {
+      try {
+        const completion = await groq.chat.completions.create({
+          messages: [{ role: 'user', content: prompt }],
+          model: modelName,
+          temperature: 0.1,
+          response_format: { type: 'json_object' },
+        });
 
-      const content = completion.choices[0]?.message?.content || '{}';
-      const parsed = JSON.parse(content);
+        const content = completion.choices[0]?.message?.content || '{}';
+        const parsed = JSON.parse(content);
 
-      const match_percentage = Math.min(100, Math.max(50, Math.round(Number(parsed.match_percentage) || 85)));
-      const evalStatus = (['correct', 'partially_correct', 'incorrect'].includes(parsed.evaluation)
-        ? parsed.evaluation
-        : match_percentage > 85 ? 'correct' : match_percentage > 65 ? 'partially_correct' : 'incorrect') as 'correct' | 'partially_correct' | 'incorrect';
+        const match_percentage = Math.min(100, Math.max(50, Math.round(Number(parsed.match_percentage) || 85)));
+        const evalStatus = (['correct', 'partially_correct', 'incorrect'].includes(parsed.evaluation)
+          ? parsed.evaluation
+          : match_percentage > 85 ? 'correct' : match_percentage > 65 ? 'partially_correct' : 'incorrect') as 'correct' | 'partially_correct' | 'incorrect';
 
-      const awarded = Math.min(maxMarks, Math.max(0, Number(parsed.marks_awarded) || Math.round((match_percentage / 100) * maxMarks * 10) / 10));
-      const feedback = String(parsed.ai_feedback || 'Answer demonstrates understanding of core concepts.').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+        const awarded = Math.min(maxMarks, Math.max(0, Number(parsed.marks_awarded) || Math.round((match_percentage / 100) * maxMarks * 10) / 10));
+        const feedback = String(parsed.ai_feedback || 'Answer demonstrates understanding of core concepts.').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
-      return {
-        match_percentage,
-        evaluation: evalStatus,
-        marks_awarded: awarded,
-        ai_feedback: feedback,
-      };
-    } catch (e: any) {
-      console.warn('Groq LLM grading evaluation fallback:', e.message || e);
+        return {
+          match_percentage,
+          evaluation: evalStatus,
+          marks_awarded: awarded,
+          ai_feedback: feedback,
+        };
+      } catch (e: any) {
+        console.warn(`Groq LLM model ${modelName} grading attempt error:`, e.message || e);
+      }
     }
   }
 

@@ -4,15 +4,15 @@ import pdfParse from 'pdf-parse';
 
 const ANSWER_EXTRACTION_SYSTEM_PROMPT = `You are an expert AI handwritten answer sheet digitizer and OCR layout parser.
 
-Your task is to transcribe and extract every distinct student answer block from the provided handwritten answer sheet document or page image.
+Your task is to transcribe and extract EVERY SINGLE student answer block from the provided handwritten answer sheet page image.
 
-CRITICAL INSTRUCTIONS FOR PRECISE BOUNDING BOXES & TRANSCRIPTION:
-1. "matched_question_number": Identify the exact question number written at the top or margin of the answer (e.g., "1(a)", "2(a)", "2(b)", "3(a)", "Q1.a"). If an answer is a continuation from a previous page without an explicit header, tag it with the question number it continues.
-2. "raw_text": Transcribe ALL handwritten text thoroughly and unabridged. Capture all bullet points, numbered lists, equations, network/circuit diagram labels (e.g. Hub, Switch, Router, TCP/IP, OSI layers, ISDN, Fourier Series formulas), and concluding statements.
-3. PRECISE BOUNDING BOX ("bbox"): Provide an accurate 4-integer array [ymin, xmin, ymax, xmax] on a 0 to 1000 scale that EXACTLY tightly bounds the handwritten text/diagram area for this answer on the page:
-   - ymin: Where the student starts writing this answer on the page (0 = page top, 1000 = page bottom).
+CRITICAL INSTRUCTIONS FOR FULL ANSWER CAPTURE & BOUNDING BOXES:
+1. "matched_question_number": Identify the exact question number written at the top or margin of the answer (e.g., "1(a)", "2(a)", "2(b)", "3(a)"). If a handwritten answer is a continuation of a question from an earlier page without a new label, tag it with the question number it continues.
+2. "raw_text": Transcribe ALL handwritten text for this question on the page Thoroughly and Unabridged from top to bottom. Do NOT omit any paragraphs, bullet points, sub-headings (e.g., i) Hub, ii) Switch, iii) Router), diagrams, or concluding statements.
+3. PRECISE BOUNDING BOX ("bbox"): Provide an accurate 4-integer array [ymin, xmin, ymax, xmax] on a 0 to 1000 scale that bounds the COMPLETE handwritten text area for this answer from its starting line down to its ending line on this page:
+   - ymin: Topmost line of handwriting for this answer.
    - xmin: Leftmost margin of handwriting.
-   - ymax: Where the student finishes writing this answer block on the page.
+   - ymax: Bottommost line of handwriting for this answer (cover all text written down the page).
    - xmax: Rightmost margin of handwriting.
 
 STRICT JSON OUTPUT FORMAT:
@@ -20,12 +20,12 @@ Return ONLY a valid JSON object matching this schema:
 {
   "answer_blocks": [
     {
-      "matched_question_number": "1(a)",
-      "raw_text": "Complete transcribed handwritten text of student answer...",
+      "matched_question_number": "2(a)",
+      "raw_text": "Full transcribed text covering all sub-points i) Hub, ii) Switch, iii) Router...",
       "pages": [
         {
           "page_number": 1,
-          "bbox": [120, 70, 780, 930]
+          "bbox": [100, 50, 950, 950]
         }
       ]
     }
