@@ -26,6 +26,8 @@ interface MappedQuestion {
   question_text: string;
   order_index: number;
   status: 'matched' | 'unanswered';
+  match_percentage?: number;
+  complete_raw_text?: string;
   answers: Array<{
     matched_question_number: string | null;
     raw_text: string;
@@ -666,9 +668,14 @@ export default function Home() {
                           </div>
 
                           {q.status === 'matched' ? (
-                            <span className="text-xs text-[#2C2A29] font-bold border border-[#C8BEB5] bg-[#C8BEB5]/40 px-2.5 py-1 rounded shrink-0">
-                              Matched
-                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded border border-[#2C2A29] bg-[#2C2A29] text-[#F5F2EB] flex items-center gap-1 shadow-sm">
+                                🎯 {q.match_percentage || 90}% Match
+                              </span>
+                              <span className="text-xs text-[#2C2A29] font-bold border border-[#C8BEB5] bg-[#C8BEB5]/40 px-2 py-1 rounded">
+                                Matched
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-xs text-[#7A6E65] font-semibold border border-[#E4DDD3] bg-[#EFECE6] px-2.5 py-1 rounded shrink-0">
                               Unanswered
@@ -677,9 +684,17 @@ export default function Home() {
                         </div>
 
                         {q.status === 'matched' ? (
-                          <div className="mt-3 pl-3.5 border-l-2 border-[#C8BEB5] text-xs sm:text-sm">
-                            <p className="text-[#3E3A37] font-mono text-xs sm:text-sm leading-relaxed">
-                              {q.answers[0]?.raw_text}
+                          <div className="mt-3 pl-3.5 border-l-2 border-[#C8BEB5] text-xs sm:text-sm flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#7A6E65]">
+                              <span>Answer Pages:</span>
+                              {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).map(pNum => (
+                                <span key={pNum} className="px-1.5 py-0.5 rounded bg-[#E4DDD3] text-[#2C2A29] font-bold">
+                                  Page {pNum}
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-[#3E3A37] font-mono text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                              {q.complete_raw_text || q.answers.map(a => a.raw_text).join('\n\n')}
                             </p>
                           </div>
                         ) : (

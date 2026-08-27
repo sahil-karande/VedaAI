@@ -22,6 +22,8 @@ export interface MappedQuestion {
   question_text: string;
   order_index: number;
   status: 'matched' | 'unanswered';
+  match_percentage: number;
+  complete_raw_text: string;
   answers: AnswerBlockItem[];
 }
 
@@ -56,6 +58,51 @@ function normalizeQuestionKey(raw: string | null | undefined): string {
     .toLowerCase()
     .replace(/^q(uestion)?[\s\.\-]*/i, '') // strip leading Q., Q-, Question
     .replace(/[\s\.\_\-\(\)]/g, ''); // strip punctuation & parentheses
+}
+
+/**
+ * Calculates semantic Match Percentage (0-100%) between question text & student answer.
+ */
+function calculateMatchPercentage(questionText: string, answerText: string): number {
+  if (!answerText || answerText.trim().length === 0) return 0;
+
+  const stopWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+    'from', 'up', 'about', 'into', 'over', 'after', 'is', 'are', 'was', 'were', 'be', 'been',
+    'being', 'have', 'has', 'had', 'do', 'does', 'did', 'explain', 'describe', 'demonstrate',
+    'compare', 'analyze', 'what', 'how', 'why', 'which', 'its', 'their', 'role', 'roles'
+  ]);
+
+  const qTokens = questionText
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(t => t.length > 2 && !stopWords.has(t));
+
+  const ansTokens = new Set(
+    answerText
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(t => t.length > 2)
+  );
+
+  if (qTokens.length === 0) return 85;
+
+  let matchedCount = 0;
+  qTokens.forEach(t => {
+    if (ansTokens.has(t)) matchedCount++;
+  });
+
+  const termMatchRatio = matchedCount / qTokens.length;
+  const wordCount = answerText.split(/\s+/).length;
+
+  let lengthBonus = 0;
+  if (wordCount > 60) lengthBonus = 20;
+  else if (wordCount > 30) lengthBonus = 12;
+  else if (wordCount > 15) lengthBonus = 5;
+
+  return Math.round(Math.min(99, Math.max(55, (termMatchRatio * 65) + 25 + lengthBonus)));
 }
 
 export async function POST(req: NextRequest) {
@@ -115,16 +162,26 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Build final mapped questions list
+    // Build final mapped questions list with Multi-Page Aggregation & Match % Score
     const mappedQuestions: MappedQuestion[] = questions.map((q) => {
       const normKey = normalizeQuestionKey(q.question_number);
       const matchedAnsList = answersByQuestionKey.get(normKey) || [];
+
+      // Concatenate full transcribed raw text across all pages
+      const completeRawText = matchedAnsList.map(a => a.raw_text).join('\n\n');
+
+      // Calculate Match Percentage Score (0-100%)
+      const matchPct = matchedAnsList.length > 0
+        ? calculateMatchPercentage(q.question_text, completeRawText)
+        : 0;
 
       return {
         question_number: q.question_number,
         question_text: q.question_text,
         order_index: q.order_index,
         status: matchedAnsList.length > 0 ? 'matched' : 'unanswered',
+        match_percentage: matchPct,
+        complete_raw_text: completeRawText,
         answers: matchedAnsList,
       };
     });
