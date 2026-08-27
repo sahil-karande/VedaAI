@@ -3,32 +3,59 @@
 @tailwind utilities;
 
 :root {
-  --background: #F5F2EB;
-  --highlight: #C8BEB5;
-  --foreground: #2C2A29;
-  --card-bg: #FAF8F5;
-  --card-border: #E4DDD3;
+  --background: #F8F7F4;
+  --foreground: #1E1E1E;
+  --brand-orange: #FF5722;
+  --brand-orange-light: #FFF1EC;
+  --card-bg: #FFFFFF;
+  --card-border: #E8E5DF;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom Sparkle Pulse & Floating Animations */
+@keyframes sparklePulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.15) rotate(12deg);
+    opacity: 1;
+  }
+}
+
+.animate-sparkle {
+  animation: sparklePulse 3s ease-in-out infinite;
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: floatGentle 4s ease-in-out infinite;
 }
 
 /* Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #F5F2EB;
+  background: #F1EFEA;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C8BEB5;
-  border-radius: 4px;
+  background: #D5D0C6;
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #A89D93;
+  background: #B3ADA1;
 }
