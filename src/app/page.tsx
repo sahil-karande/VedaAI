@@ -46,7 +46,11 @@ import {
   Layers,
   FileSpreadsheet,
   Zap,
-  CheckSquare
+  CheckSquare,
+  UserCheck,
+  Edit3,
+  Save,
+  LogIn
 } from 'lucide-react';
 import { renderPdfToPageImages, rotateImageDataUrl } from '@/lib/pdf-renderer';
 
@@ -104,6 +108,26 @@ interface MappingData {
 }
 
 export default function Home() {
+  // Dynamic User Profile & Authentication state
+  const [userProfile, setUserProfile] = useState({
+    name: 'Madhur Rastogi',
+    role: 'Senior Computer Science Educator',
+    school: 'Delhi Public School',
+    campus: 'Bokaro Steel City',
+    email: 'madhur.rastogi@dps.edu.in',
+    initials: 'MR',
+    isLoggedIn: true,
+  });
+
+  // Dynamic School Details State
+  const [schoolDetails, setSchoolDetails] = useState({
+    schoolName: 'Delhi Public School',
+    campus: 'Bokaro Steel City Campus',
+    license: 'Enterprise AI Plan',
+    studentsCount: '1,240 Students',
+    activeSections: 'Class 10-A, 10-B',
+  });
+
   // Navigation Sidebar & Active View state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activeNav, setActiveNav] = useState<'exams' | 'home' | 'classroom' | 'assignments' | 'library' | 'settings'>('exams');
@@ -116,11 +140,72 @@ export default function Home() {
   const [showAiChatModal, setShowAiChatModal] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [showSchoolModal, setShowSchoolModal] = useState<boolean>(false);
+  const [showAccountSettingsModal, setShowAccountSettingsModal] = useState<boolean>(false);
+  const [isEditingSchool, setIsEditingSchool] = useState<boolean>(false);
+
+  // Edit Forms State
+  const [editProfileForm, setEditProfileForm] = useState(userProfile);
+  const [editSchoolForm, setEditSchoolForm] = useState(schoolDetails);
+
+  // Sync profile & school details with localStorage
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('veda_user_profile');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        setUserProfile(parsed);
+        setEditProfileForm(parsed);
+      }
+      const savedSchool = localStorage.getItem('veda_school_details');
+      if (savedSchool) {
+        const parsed = JSON.parse(savedSchool);
+        setSchoolDetails(parsed);
+        setEditSchoolForm(parsed);
+      }
+    } catch (e) {}
+  }, []);
+
+  const saveUserProfile = (newProfile: typeof userProfile) => {
+    const nameParts = newProfile.name.trim().split(/\s+/);
+    const initials = nameParts.length >= 2 
+      ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+      : (newProfile.name.slice(0, 2) || 'MR').toUpperCase();
+
+    const updated = { ...newProfile, initials };
+    setUserProfile(updated);
+    setEditProfileForm(updated);
+    try {
+      localStorage.setItem('veda_user_profile', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const saveSchoolDetails = (newSchool: typeof schoolDetails) => {
+    setSchoolDetails(newSchool);
+    setEditSchoolForm(newSchool);
+    setUserProfile(prev => ({ ...prev, school: newSchool.schoolName, campus: newSchool.campus }));
+    try {
+      localStorage.setItem('veda_school_details', JSON.stringify(newSchool));
+    } catch (e) {}
+  };
+
+  const handleSignOut = () => {
+    const signedOut = { ...userProfile, isLoggedIn: false };
+    setUserProfile(signedOut);
+    setShowProfileDropdown(false);
+    try {
+      localStorage.setItem('veda_user_profile', JSON.stringify(signedOut));
+    } catch (e) {}
+  };
+
+  const handleSignInSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveUserProfile({ ...editProfileForm, isLoggedIn: true });
+  };
 
   // Quick AI Assistant Chat Messages
   const [aiChatInput, setAiChatInput] = useState<string>('');
   const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    { role: 'assistant', text: 'Hello Madhur! I am VedaAI Assistant. How can I help you with your assessment grading, rubrics, or question papers today?' }
+    { role: 'assistant', text: `Hello ${userProfile.name}! I am VedaAI Assistant. How can I help you with your assessment grading, rubrics, or question papers today?` }
   ]);
 
   // Notifications List
@@ -179,7 +264,6 @@ export default function Home() {
     }, 600);
   };
 
-  // Scroll to target bounding box when a question is selected
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
 
@@ -491,6 +575,81 @@ export default function Home() {
     };
   };
 
+  // IF SIGNED OUT: DISPLAY SIGN-IN SCREEN
+  if (!userProfile.isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center p-6 font-sans">
+        <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-md w-full p-8 shadow-2xl flex flex-col gap-6 animate-in fade-in zoom-in-95">
+          <div className="flex flex-col items-center text-center gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-[#1E1E1E] text-white flex items-center justify-center font-black text-2xl shadow-md mb-1">
+              V
+            </div>
+            <h2 className="text-2xl font-bold text-[#1E1E1E]">Sign In to VedaAI</h2>
+            <p className="text-xs text-[#888077]">Enter your educator credentials to access the workspace</p>
+          </div>
+
+          <form onSubmit={handleSignInSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#554F49]">Educator Full Name</label>
+              <input
+                type="text"
+                required
+                value={editProfileForm.name}
+                onChange={e => setEditProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                placeholder="e.g. Madhur Rastogi"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#554F49]">Educator Role / Title</label>
+              <input
+                type="text"
+                required
+                value={editProfileForm.role}
+                onChange={e => setEditProfileForm(prev => ({ ...prev, role: e.target.value }))}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                placeholder="e.g. Senior Computer Science Educator"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#554F49]">School Name</label>
+              <input
+                type="text"
+                required
+                value={editProfileForm.school}
+                onChange={e => setEditProfileForm(prev => ({ ...prev, school: e.target.value }))}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                placeholder="e.g. Delhi Public School"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#554F49]">Campus / City</label>
+              <input
+                type="text"
+                required
+                value={editProfileForm.campus}
+                onChange={e => setEditProfileForm(prev => ({ ...prev, campus: e.target.value }))}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                placeholder="e.g. Bokaro Steel City"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="mt-2 py-3.5 px-6 rounded-full bg-[#1E1E1E] text-white font-bold text-sm hover:bg-[#333333] transition shadow-md flex items-center justify-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Sign In to VedaAI Workspace</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F7F4] text-[#1E1E1E] flex flex-col font-sans antialiased">
       {/* PERSISTENT TOP HEADER BAR */}
@@ -513,7 +672,7 @@ export default function Home() {
               {activeNav === 'classroom' && 'My Classroom'}
               {activeNav === 'assignments' && 'Assignments'}
               {activeNav === 'library' && 'Question Library'}
-              {activeNav === 'settings' && 'Platform Settings'}
+              {activeNav === 'settings' && 'Account Settings'}
             </span>
           </div>
         </div>
@@ -596,35 +755,35 @@ export default function Home() {
               className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF] cursor-pointer"
             >
               <div className="w-8 h-8 rounded-full bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-bold text-xs">
-                MR
+                {userProfile.initials}
               </div>
-              <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">Madhur Rastogi</span>
+              <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">{userProfile.name}</span>
               <ChevronDown className="w-4 h-4 text-[#888077] hidden md:inline" />
             </button>
 
             {showProfileDropdown && (
               <div className="absolute right-0 top-12 w-64 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-xl p-3 flex flex-col gap-2 z-50">
                 <div className="p-3 rounded-xl bg-[#F8F7F4] flex flex-col">
-                  <span className="text-xs font-bold text-[#1E1E1E]">Madhur Rastogi</span>
-                  <span className="text-[11px] text-[#888077]">Senior Computer Science Educator</span>
-                  <span className="text-[10px] text-[#FF5722] font-semibold mt-1">Delhi Public School</span>
+                  <span className="text-xs font-bold text-[#1E1E1E]">{userProfile.name}</span>
+                  <span className="text-[11px] text-[#888077]">{userProfile.role}</span>
+                  <span className="text-[10px] text-[#FF5722] font-semibold mt-1">{userProfile.school} ({userProfile.campus})</span>
                 </div>
                 <button 
-                  onClick={() => { setActiveNav('settings'); setShowProfileDropdown(false); }}
-                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]"
+                  onClick={() => { setShowAccountSettingsModal(true); setShowProfileDropdown(false); }}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] cursor-pointer"
                 >
                   <Settings className="w-4 h-4 text-[#888077]" /> Account Settings
                 </button>
                 <button 
-                  onClick={() => setShowSchoolModal(true)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]"
+                  onClick={() => { setShowSchoolModal(true); setShowProfileDropdown(false); }}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] cursor-pointer"
                 >
                   <GraduationCap className="w-4 h-4 text-[#888077]" /> School Roster & License
                 </button>
                 <div className="w-full h-px bg-[#E8E5DF] my-1"></div>
                 <button 
-                  onClick={() => setShowProfileDropdown(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50"
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" /> Sign Out
                 </button>
@@ -723,12 +882,12 @@ export default function Home() {
               className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center gap-3 cursor-pointer hover:border-[#B3ADA1] transition"
             >
               <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                DPS
+                {userProfile.school.slice(0, 3).toUpperCase()}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex flex-col truncate">
-                  <span className="text-xs font-bold text-[#1E1E1E] truncate">Delhi Public School</span>
-                  <span className="text-[10px] text-[#888077] truncate">Bokaro Steel City</span>
+                  <span className="text-xs font-bold text-[#1E1E1E] truncate">{userProfile.school}</span>
+                  <span className="text-[10px] text-[#888077] truncate">{userProfile.campus}</span>
                 </div>
               )}
             </div>
@@ -742,10 +901,10 @@ export default function Home() {
             <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
               <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-[#1E1E1E]">Welcome back, Madhur Rastogi 👋</h2>
+                  <h2 className="text-2xl font-bold text-[#1E1E1E]">Welcome back, {userProfile.name} 👋</h2>
                   <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30">Active Academic Year 2026</span>
                 </div>
-                <p className="text-xs sm:text-sm text-[#777067]">Here is your automated assessment breakdown for Class 10 Computer Science.</p>
+                <p className="text-xs sm:text-sm text-[#777067]">Here is your automated assessment breakdown for {userProfile.school}.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                   <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                     <span className="text-xs text-[#888077] font-semibold uppercase">Total Assessments Mapped</span>
@@ -773,12 +932,12 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-5 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#FF5722]">Class 10-A (Computer Science)</span>
+                    <span className="text-xs font-bold text-[#FF5722]">Class 10-A ({userProfile.role})</span>
                     <span className="text-sm font-bold text-[#1E1E1E]">38 Students Enrolled</span>
                     <span className="text-xs text-[#888077]">Last Exam: Unit Test - Computer Networks (Mapped)</span>
                   </div>
                   <div className="p-5 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#FF5722]">Class 10-B (Computer Science)</span>
+                    <span className="text-xs font-bold text-[#FF5722]">Class 10-B ({userProfile.role})</span>
                     <span className="text-sm font-bold text-[#1E1E1E]">42 Students Enrolled</span>
                     <span className="text-xs text-[#888077]">Last Exam: Mid-Term Revision (3 Pending)</span>
                   </div>
@@ -1008,7 +1167,7 @@ export default function Home() {
                         </span>
                         <button
                           onClick={toggleExpandAll}
-                          className="text-xs font-semibold text-[#FF5722] hover:underline"
+                          className="text-xs font-semibold text-[#FF5722] hover:underline cursor-pointer"
                         >
                           Expand / Collapse All
                         </button>
@@ -1018,7 +1177,7 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                         <button
                           onClick={() => setActiveTab('all')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                             activeTab === 'all' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
                           }`}
                         >
@@ -1026,7 +1185,7 @@ export default function Home() {
                         </button>
                         <button
                           onClick={() => setActiveTab('matched')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                             activeTab === 'matched' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
                           }`}
                         >
@@ -1034,7 +1193,7 @@ export default function Home() {
                         </button>
                         <button
                           onClick={() => setActiveTab('unanswered')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                             activeTab === 'unanswered' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
                           }`}
                         >
@@ -1135,7 +1294,7 @@ export default function Home() {
                           <div className="flex items-center gap-1 bg-[#F8F7F4] p-1 rounded-lg border border-[#E8E5DF]">
                             <button
                               onClick={() => setCanvasZoom(z => Math.max(50, z - 15))}
-                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
+                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E] cursor-pointer"
                               title="Zoom Out"
                             >
                               <ZoomOut className="w-3.5 h-3.5" />
@@ -1143,7 +1302,7 @@ export default function Home() {
                             <span className="px-2 text-[11px] font-mono font-bold text-[#1E1E1E]">{canvasZoom}%</span>
                             <button
                               onClick={() => setCanvasZoom(z => Math.min(200, z + 15))}
-                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
+                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E] cursor-pointer"
                               title="Zoom In"
                             >
                               <ZoomIn className="w-3.5 h-3.5" />
@@ -1154,7 +1313,7 @@ export default function Home() {
                             <button
                               disabled={currentCanvasPage <= 1}
                               onClick={() => setCurrentCanvasPage(p => Math.max(1, p - 1))}
-                              className="disabled:opacity-30 hover:text-[#FF5722]"
+                              className="disabled:opacity-30 hover:text-[#FF5722] cursor-pointer"
                             >
                               &lt;
                             </button>
@@ -1162,7 +1321,7 @@ export default function Home() {
                             <button
                               disabled={currentCanvasPage >= getPageNumbers().length}
                               onClick={() => setCurrentCanvasPage(p => Math.min(getPageNumbers().length, p + 1))}
-                              className="disabled:opacity-30 hover:text-[#FF5722]"
+                              className="disabled:opacity-30 hover:text-[#FF5722] cursor-pointer"
                             >
                               &gt;
                             </button>
@@ -1185,14 +1344,14 @@ export default function Home() {
                                   <div className="flex items-center gap-2">
                                     <button
                                       onClick={() => handleRotatePage(pageNum, 'ccw')}
-                                      className="hover:text-[#1E1E1E] flex items-center gap-1"
+                                      className="hover:text-[#1E1E1E] flex items-center gap-1 cursor-pointer"
                                     >
                                       <RotateCcw className="w-3 h-3" /> Rotate Left
                                     </button>
                                     <span>|</span>
                                     <button
                                       onClick={() => handleRotatePage(pageNum, 'cw')}
-                                      className="hover:text-[#1E1E1E] flex items-center gap-1"
+                                      className="hover:text-[#1E1E1E] flex items-center gap-1 cursor-pointer"
                                     >
                                       <RotateCw className="w-3 h-3" /> Rotate Right
                                     </button>
@@ -1221,7 +1380,7 @@ export default function Home() {
                                     </div>
                                   )}
 
-                                  {/* BOUNDING BOX OVERLAYS (CLEAN GREEN OUTLINE BOXES) */}
+                                  {/* BOUNDING BOX OVERLAYS */}
                                   {mappingData.mapped_questions.map((q) =>
                                     q.answers.map((ans, ansIdx) =>
                                       ans.pages
@@ -1421,33 +1580,192 @@ export default function Home() {
         </div>
       )}
 
-      {/* INTERACTIVE MODAL 4: SCHOOL DETAILS & ROSTER */}
+      {/* INTERACTIVE MODAL 4: EDITABLE SCHOOL DETAILS & ROSTER */}
       {showSchoolModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white font-bold text-sm flex items-center justify-center">
-                  DPS
+                  {schoolDetails.schoolName.slice(0, 3).toUpperCase()}
                 </div>
                 <div className="flex flex-col">
-                  <h3 className="font-bold text-[#1E1E1E] text-base">Delhi Public School</h3>
-                  <span className="text-xs text-[#888077]">Bokaro Steel City Campus</span>
+                  <h3 className="font-bold text-[#1E1E1E] text-base">{schoolDetails.schoolName}</h3>
+                  <span className="text-xs text-[#888077]">{schoolDetails.campus}</span>
                 </div>
               </div>
               <button onClick={() => setShowSchoolModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49]">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex flex-col gap-2 text-xs text-[#554F49]">
-              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
-                <span>Active License:</span> <span className="font-bold text-emerald-700">Enterprise AI Plan</span>
+
+            {!isEditingSchool ? (
+              <div className="flex flex-col gap-3 text-xs text-[#554F49]">
+                <div className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex justify-between items-center">
+                  <span>Active License:</span> <span className="font-bold text-emerald-700">{schoolDetails.license}</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex justify-between items-center">
+                  <span>Registered Students:</span> <span className="font-bold text-[#1E1E1E]">{schoolDetails.studentsCount}</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex justify-between items-center">
+                  <span>Active Class Sections:</span> <span className="font-bold text-[#1E1E1E]">{schoolDetails.activeSections}</span>
+                </div>
+                <button
+                  onClick={() => setIsEditingSchool(true)}
+                  className="mt-2 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#E8E5DF] text-[#1E1E1E] font-bold text-xs flex items-center justify-center gap-2 transition"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-[#FF5722]" /> Edit School Details
+                </button>
               </div>
-              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
-                <span>Registered Students:</span> <span className="font-bold text-[#1E1E1E]">1,240 Students</span>
+            ) : (
+              <div className="flex flex-col gap-3 text-xs">
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-[#554F49]">School Name</label>
+                  <input
+                    type="text"
+                    value={editSchoolForm.schoolName}
+                    onChange={e => setEditSchoolForm(prev => ({ ...prev, schoolName: e.target.value }))}
+                    className="px-3 py-2 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-[#554F49]">Campus / Location</label>
+                  <input
+                    type="text"
+                    value={editSchoolForm.campus}
+                    onChange={e => setEditSchoolForm(prev => ({ ...prev, campus: e.target.value }))}
+                    className="px-3 py-2 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-[#554F49]">Active License Plan</label>
+                  <input
+                    type="text"
+                    value={editSchoolForm.license}
+                    onChange={e => setEditSchoolForm(prev => ({ ...prev, license: e.target.value }))}
+                    className="px-3 py-2 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-[#554F49]">Registered Students Count</label>
+                  <input
+                    type="text"
+                    value={editSchoolForm.studentsCount}
+                    onChange={e => setEditSchoolForm(prev => ({ ...prev, studentsCount: e.target.value }))}
+                    className="px-3 py-2 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => setIsEditingSchool(false)}
+                    className="px-4 py-2 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      saveSchoolDetails(editSchoolForm);
+                      setIsEditingSchool(false);
+                    }}
+                    className="px-5 py-2 rounded-xl bg-[#1E1E1E] text-white font-bold flex items-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save Changes
+                  </button>
+                </div>
               </div>
-              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
-                <span>Active Class Sections:</span> <span className="font-bold text-[#1E1E1E]">Class 10-A, 10-B</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MODAL 5: EDITABLE ACCOUNT SETTINGS */}
+      {showAccountSettingsModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#1E1E1E] text-white font-bold text-sm flex items-center justify-center">
+                  {userProfile.initials}
+                </div>
+                <div className="flex flex-col">
+                  <h3 className="font-bold text-[#1E1E1E] text-base">Account Settings</h3>
+                  <span className="text-xs text-[#888077]">Edit profile details & preferences</span>
+                </div>
+              </div>
+              <button onClick={() => setShowAccountSettingsModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4 text-xs sm:text-sm">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-[#554F49]">Educator Full Name</label>
+                <input
+                  type="text"
+                  value={editProfileForm.name}
+                  onChange={e => setEditProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-[#554F49]">Educator Role / Designation</label>
+                <input
+                  type="text"
+                  value={editProfileForm.role}
+                  onChange={e => setEditProfileForm(prev => ({ ...prev, role: e.target.value }))}
+                  className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-[#554F49]">School Name</label>
+                <input
+                  type="text"
+                  value={editProfileForm.school}
+                  onChange={e => setEditProfileForm(prev => ({ ...prev, school: e.target.value }))}
+                  className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-[#554F49]">Campus / Location</label>
+                <input
+                  type="text"
+                  value={editProfileForm.campus}
+                  onChange={e => setEditProfileForm(prev => ({ ...prev, campus: e.target.value }))}
+                  className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-[#554F49]">Email Address</label>
+                <input
+                  type="email"
+                  value={editProfileForm.email}
+                  onChange={e => setEditProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="px-4 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm font-medium focus:outline-none focus:border-[#FF5722]"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-[#E8E5DF]">
+                <button
+                  onClick={() => setShowAccountSettingsModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    saveUserProfile(editProfileForm);
+                    setShowAccountSettingsModal(false);
+                  }}
+                  className="px-6 py-2.5 rounded-full bg-[#1E1E1E] text-white font-bold text-xs hover:bg-[#333333] transition flex items-center gap-2 shadow-md"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Account Details</span>
+                </button>
               </div>
             </div>
           </div>
