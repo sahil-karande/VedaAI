@@ -5,16 +5,18 @@ import pdfParse from 'pdf-parse';
 const EXTRACTION_SYSTEM_PROMPT = `You are an expert exam paper parser. Extract every single question from the provided question paper document.
 
 CRITICAL EXTRACTION REQUIREMENTS:
-1. PRESERVE ORIGINAL NUMBERING: Extract question_number strings EXACTLY as printed (e.g., "1", "1(a)", "11(b)", "Q1.2", "Part A - Q3"). Do NOT renumber or standardize question numbers.
-2. SUB-PARTS AS SEPARATE ENTRIES: Treat labelled sub-parts (e.g., 11(a), 11(b), 1(i), 1(ii)) as separate, distinct question entries in the output list.
+1. PRESERVE ORIGINAL NUMBERING: Extract question_number strings EXACTLY as printed (e.g., "1(a)", "2(a)", "2(b)", "3(a)"). Do NOT renumber or standardize question numbers.
+2. SUB-PARTS AS SEPARATE ENTRIES: Treat labelled sub-parts (e.g., 1(a), 2(a), 2(b), 3(a)) as separate entries in the output list.
 3. PRESERVE PRINTED ORDER: Maintain the exact printed sequence using a zero-indexed integer field "order_index" (0, 1, 2, ...).
-4. COMPLETE TEXT: Include the full, unabridged text of the question.
-5. STRICT JSON OUTPUT: Return ONLY a valid JSON object matching this schema:
+4. EXTRACT MARKS: Extract the printed marks/points for each question as a number field "max_marks" (e.g. 5, 3, 2, 5). If unspecified, estimate default 5.
+5. COMPLETE TEXT: Include the full, unabridged text of the question.
+6. STRICT JSON OUTPUT: Return ONLY a valid JSON object matching this schema:
 {
   "questions": [
     {
-      "question_number": "string",
-      "question_text": "string",
+      "question_number": "1(a)",
+      "question_text": "Demonstrate how data is transmitted through the layers of the TCP/IP model...",
+      "max_marks": 5,
       "order_index": 0
     }
   ]
@@ -172,6 +174,7 @@ export async function POST(req: NextRequest) {
     const questions = rawQuestions.map((q: any, idx: number) => ({
       question_number: String(q.question_number || q.number || `Q${idx + 1}`),
       question_text: String(q.question_text || q.text || ''),
+      max_marks: Number(q.max_marks || q.marks || 5),
       order_index: typeof q.order_index === 'number' ? q.order_index : idx,
     }));
 

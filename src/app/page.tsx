@@ -25,9 +25,13 @@ interface MappedQuestion {
   question_number: string;
   question_text: string;
   order_index: number;
+  max_marks?: number;
+  marks_awarded?: number;
   status: 'matched' | 'unanswered';
+  evaluation?: 'correct' | 'partially_correct' | 'incorrect' | 'unanswered';
   match_percentage?: number;
   complete_raw_text?: string;
+  ai_feedback?: string;
   answers: Array<{
     matched_question_number: string | null;
     raw_text: string;
@@ -53,6 +57,13 @@ interface MappingSummary {
   matched_questions: number;
   unanswered_questions: number;
   unmatched_answers: number;
+  total_score?: number;
+  max_possible_score?: number;
+  score_percentage?: number;
+  correct_count?: number;
+  partial_count?: number;
+  incorrect_count?: number;
+  overall_feedback?: string;
 }
 
 interface MappingData {
@@ -555,6 +566,38 @@ export default function Home() {
         {/* WORKSPACE RESULTS VIEW */}
         {mappingData && (
           <div className="flex flex-col gap-8">
+            {/* GRADING & AI INSIGHTS SUMMARY BANNER */}
+            <div className="p-6 rounded-xl bg-[#FAF8F5] border border-[#E4DDD3] shadow-sm flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E4DDD3] pb-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs uppercase tracking-widest font-semibold text-[#7A6E65]">Assessment Grading Summary</span>
+                  <h3 className="text-xl sm:text-2xl font-bold text-[#2C2A29]">
+                    Total Score: {mappingData.summary.total_score || 0} / {mappingData.summary.max_possible_score || 15} Marks
+                    <span className="ml-3 text-sm font-semibold px-3 py-1 rounded bg-[#2C2A29] text-[#F5F2EB]">
+                      {mappingData.summary.score_percentage || 0}% Score
+                    </span>
+                  </h3>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-mono font-semibold">
+                  <span className="px-3 py-1.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    {mappingData.summary.correct_count || 0} Correct
+                  </span>
+                  <span className="px-3 py-1.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                    {mappingData.summary.partial_count || 0} Partial
+                  </span>
+                  <span className="px-3 py-1.5 rounded bg-red-100 text-red-800 border border-red-300">
+                    {mappingData.summary.incorrect_count || 0} Incorrect
+                  </span>
+                </div>
+              </div>
+              {mappingData.summary.overall_feedback && (
+                <p className="text-xs sm:text-sm text-[#554F49] font-mono leading-relaxed bg-[#F5F2EB] p-3.5 rounded border border-[#E4DDD3]">
+                  <span className="font-semibold text-[#2C2A29]">AI Performance Analysis: </span>
+                  {mappingData.summary.overall_feedback}
+                </p>
+              )}
+            </div>
+
             {/* Stats Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E4DDD3] flex flex-col">
@@ -653,13 +696,13 @@ export default function Home() {
                       <div
                         key={q.question_number}
                         onClick={() => handleSelectQuestion(q.question_number)}
-                        className={`p-5 rounded-lg border transition cursor-pointer ${
+                        className={`p-5 rounded-lg border transition cursor-pointer flex flex-col gap-3 ${
                           isSelected
                             ? 'bg-[#C8BEB5]/40 border-[#2C2A29] ring-2 ring-[#2C2A29]/40 shadow-sm'
                             : 'bg-[#FAF8F5] border-[#E4DDD3] hover:border-[#C8BEB5]'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2.5">
                             <span className="px-2.5 py-1 rounded bg-[#2C2A29] text-[#F5F2EB] text-xs font-mono font-bold">
                               Q{q.question_number}
@@ -668,12 +711,12 @@ export default function Home() {
                           </div>
 
                           {q.status === 'matched' ? (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs font-bold px-2.5 py-1 rounded border border-[#2C2A29] bg-[#2C2A29] text-[#F5F2EB] flex items-center gap-1 shadow-sm">
-                                🎯 {q.match_percentage || 90}% Match
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded border border-[#2C2A29] bg-[#2C2A29] text-[#F5F2EB] shadow-sm">
+                                {q.match_percentage || 90}% Match
                               </span>
-                              <span className="text-xs text-[#2C2A29] font-bold border border-[#C8BEB5] bg-[#C8BEB5]/40 px-2 py-1 rounded">
-                                Matched
+                              <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#E4DDD3] text-[#2C2A29]">
+                                {q.marks_awarded || 0} / {q.max_marks || 5} Marks
                               </span>
                             </div>
                           ) : (
@@ -684,18 +727,38 @@ export default function Home() {
                         </div>
 
                         {q.status === 'matched' ? (
-                          <div className="mt-3 pl-3.5 border-l-2 border-[#C8BEB5] text-xs sm:text-sm flex flex-col gap-2">
-                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#7A6E65]">
-                              <span>Answer Pages:</span>
-                              {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).map(pNum => (
-                                <span key={pNum} className="px-1.5 py-0.5 rounded bg-[#E4DDD3] text-[#2C2A29] font-bold">
-                                  Page {pNum}
+                          <div className="pl-3.5 border-l-2 border-[#C8BEB5] text-xs sm:text-sm flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[#7A6E65]">
+                              <div className="flex items-center gap-1.5">
+                                <span>Answer Pages:</span>
+                                {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).map(pNum => (
+                                  <span key={pNum} className="px-1.5 py-0.5 rounded bg-[#E4DDD3] text-[#2C2A29] font-bold">
+                                    Page {pNum}
+                                  </span>
+                                ))}
+                              </div>
+                              {q.evaluation && (
+                                <span className={`px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px] ${
+                                  q.evaluation === 'correct'
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : q.evaluation === 'partially_correct'
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : 'bg-red-100 text-red-800 border border-red-300'
+                                }`}>
+                                  {q.evaluation.replace('_', ' ')}
                                 </span>
-                              ))}
+                              )}
                             </div>
                             <p className="text-[#3E3A37] font-mono text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
                               {q.complete_raw_text || q.answers.map(a => a.raw_text).join('\n\n')}
                             </p>
+
+                            {q.ai_feedback && (
+                              <div className="p-2.5 rounded bg-[#F5F2EB] border border-[#E4DDD3] text-xs text-[#554F49]">
+                                <span className="font-semibold text-[#2C2A29]">AI Evaluation Notes: </span>
+                                {q.ai_feedback}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <p className="mt-1 text-xs text-[#8C7E72] italic">No answer submitted.</p>
@@ -828,13 +891,13 @@ export default function Home() {
                                     style={boxStyle}
                                     className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
                                       isSelected
-                                        ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/60 z-30 ring-2 ring-[#7A6E65]/50 shadow-md'
+                                        ? 'border-2 border-[#2C2A29] bg-transparent z-30 ring-2 ring-[#2C2A29]/20 shadow-md'
                                         : activeHoveredBoxId === q.question_number
-                                        ? 'border border-[#7A6E65] bg-[#C8BEB5]/40 z-20'
-                                        : 'border border-[#C8BEB5] bg-[#C8BEB5]/20 hover:border-[#7A6E65] z-10'
+                                        ? 'border-2 border-[#7A6E65] bg-transparent z-20'
+                                        : 'border-2 border-dashed border-[#A89D93] bg-transparent hover:border-[#2C2A29] z-10'
                                     }`}
                                   >
-                                    <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                                    <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold shadow-sm ${
                                       isSelected ? 'bg-[#2C2A29] text-[#F5F2EB]' : 'bg-[#FAF8F5] text-[#2C2A29] border border-[#C8BEB5]'
                                     }`}>
                                       Q{q.question_number}
@@ -865,8 +928,8 @@ export default function Home() {
                                   style={boxStyle}
                                   className={`absolute rounded transition-all cursor-pointer flex items-start justify-between p-1.5 ${
                                     isSelected
-                                      ? 'border-2 border-[#2C2A29] bg-[#C8BEB5]/40 z-30'
-                                      : 'border border-dashed border-[#C8BEB5] bg-[#C8BEB5]/15 hover:border-[#7A6E65] z-10'
+                                      ? 'border-2 border-[#2C2A29] bg-transparent z-30 ring-2 ring-[#2C2A29]/20'
+                                      : 'border border-dashed border-[#C8BEB5] bg-transparent hover:border-[#7A6E65] z-10'
                                   }`}
                                 >
                                   <span className="px-2 py-0.5 rounded text-xs font-mono bg-[#FAF8F5] text-[#7A6E65] border border-[#E4DDD3]">
