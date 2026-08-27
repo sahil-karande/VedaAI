@@ -50,7 +50,13 @@ import {
   UserCheck,
   Edit3,
   Save,
-  LogIn
+  LogIn,
+  Trash2,
+  Bookmark,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  Eye
 } from 'lucide-react';
 import { renderPdfToPageImages, rotateImageDataUrl } from '@/lib/pdf-renderer';
 
@@ -107,6 +113,20 @@ interface MappingData {
   error?: string;
 }
 
+interface SavedLibraryItem {
+  id: string;
+  title: string;
+  dateSaved: string;
+  academicYear: string;
+  scorePercentage: number;
+  totalScore: number;
+  maxPossibleScore: number;
+  totalQuestions: number;
+  questionPaperName?: string;
+  answerSheetName?: string;
+  mappingData: MappingData;
+}
+
 export default function Home() {
   // Dynamic User Profile & Authentication state
   const [userProfile, setUserProfile] = useState({
@@ -128,6 +148,9 @@ export default function Home() {
     activeSections: 'Class 10-A, 10-B',
   });
 
+  // Academic Year State (Changable by User)
+  const [academicYear, setAcademicYear] = useState<string>('2025-2026');
+
   // Navigation Sidebar & Active View state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activeNav, setActiveNav] = useState<'exams' | 'home' | 'classroom' | 'assignments' | 'library' | 'settings'>('exams');
@@ -147,7 +170,118 @@ export default function Home() {
   const [editProfileForm, setEditProfileForm] = useState(userProfile);
   const [editSchoolForm, setEditSchoolForm] = useState(schoolDetails);
 
-  // Sync profile & school details with localStorage
+  // My Library Saved Items State
+  const [libraryItems, setLibraryItems] = useState<SavedLibraryItem[]>([
+    {
+      id: 'lib-sample-1',
+      title: 'Computer Networks Unit Test 1 (Class 10-A)',
+      dateSaved: 'Aug 27, 2026',
+      academicYear: '2025-2026',
+      scorePercentage: 87,
+      totalScore: 13,
+      maxPossibleScore: 15,
+      totalQuestions: 4,
+      questionPaperName: 'Question_Paper_Class10.pdf',
+      answerSheetName: 'Answer_Sheet_Student1.pdf',
+      mappingData: {
+        success: true,
+        summary: {
+          total_questions: 4,
+          matched_questions: 4,
+          unanswered_questions: 0,
+          unmatched_answers: 0,
+          total_score: 13,
+          max_possible_score: 15,
+          score_percentage: 87,
+          correct_count: 2,
+          partial_count: 2,
+          incorrect_count: 0,
+          overall_feedback: 'Student completed 4 out of 4 questions, scoring 13 out of 15 marks (87%). 2 questions fully correct, 2 partially correct.',
+        },
+        mapped_questions: [
+          {
+            question_number: '1(a)',
+            question_text: 'Demonstrate how data is transmitted through the layers of the TCP/IP model and compare it with OSI Model',
+            order_index: 0,
+            max_marks: 5,
+            marks_awarded: 4.5,
+            status: 'matched',
+            evaluation: 'correct',
+            match_percentage: 92,
+            complete_raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
+            ai_feedback: 'Student answer covers key concepts mentioned in question prompt thoroughly.',
+            answers: [
+              {
+                matched_question_number: '1(a)',
+                raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol.',
+                pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
+              }
+            ]
+          },
+          {
+            question_number: '2(a)',
+            question_text: 'Compare the roles of a hub, switch, and router in a Computer network.',
+            order_index: 1,
+            max_marks: 3,
+            marks_awarded: 2.5,
+            status: 'matched',
+            evaluation: 'partially_correct',
+            match_percentage: 82,
+            complete_raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
+            ai_feedback: 'Student answer covers key concepts of Hub, Switch, and Router.',
+            answers: [
+              {
+                matched_question_number: '2(a)',
+                raw_text: 'Hub is the central station...',
+                pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
+              }
+            ]
+          },
+          {
+            question_number: '2(b)',
+            question_text: 'Explain the concept of Fourier Series and its significance in signal analysis.',
+            order_index: 2,
+            max_marks: 2,
+            marks_awarded: 1.5,
+            status: 'matched',
+            evaluation: 'partially_correct',
+            match_percentage: 75,
+            complete_raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network.',
+            ai_feedback: 'Student answer covers sine/cosine wave concepts.',
+            answers: [
+              {
+                matched_question_number: '2(b)',
+                raw_text: 'Fourier Series consists...',
+                pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
+              }
+            ]
+          },
+          {
+            question_number: '3(a)',
+            question_text: 'Analyze the architecture and services of ISDN, and explain how they support digital communication and data transmission.',
+            order_index: 3,
+            max_marks: 5,
+            marks_awarded: 4.5,
+            status: 'matched',
+            evaluation: 'correct',
+            match_percentage: 90,
+            complete_raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN and B-ISDN.',
+            ai_feedback: 'Student answer covers ISDN BRI/PRI channels.',
+            answers: [
+              {
+                matched_question_number: '3(a)',
+                raw_text: 'ISDN generally called as integrated services digital network.',
+                pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
+              }
+            ]
+          }
+        ],
+        unmatched_answers: []
+      }
+    }
+  ]);
+
+  // Sync profile, school details, academic year & library with localStorage
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('veda_user_profile');
@@ -161,6 +295,17 @@ export default function Home() {
         const parsed = JSON.parse(savedSchool);
         setSchoolDetails(parsed);
         setEditSchoolForm(parsed);
+      }
+      const savedYear = localStorage.getItem('veda_academic_year');
+      if (savedYear) {
+        setAcademicYear(savedYear);
+      }
+      const savedLib = localStorage.getItem('veda_assessment_library');
+      if (savedLib) {
+        const parsed = JSON.parse(savedLib);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLibraryItems(parsed);
+        }
       }
     } catch (e) {}
   }, []);
@@ -186,6 +331,50 @@ export default function Home() {
     try {
       localStorage.setItem('veda_school_details', JSON.stringify(newSchool));
     } catch (e) {}
+  };
+
+  const handleSaveToLibrary = () => {
+    if (!mappingData) return;
+    const newItem: SavedLibraryItem = {
+      id: `lib-${Date.now()}`,
+      title: `Computer Science Assessment (${questionPaper?.name || 'Class 10 Unit Test'})`,
+      dateSaved: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      academicYear,
+      scorePercentage: mappingData.summary.score_percentage || 0,
+      totalScore: mappingData.summary.total_score || 0,
+      maxPossibleScore: mappingData.summary.max_possible_score || 15,
+      totalQuestions: mappingData.summary.total_questions || 4,
+      questionPaperName: questionPaper?.name || 'Question_Paper.pdf',
+      answerSheetName: answerSheet?.name || 'Answer_Sheet.pdf',
+      mappingData,
+    };
+
+    setLibraryItems(prev => {
+      const updated = [newItem, ...prev];
+      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    alert('Assessment successfully saved to My Library!');
+  };
+
+  const handleDeleteLibraryItem = (id: string) => {
+    setLibraryItems(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const handleLoadLibraryItem = (item: SavedLibraryItem) => {
+    setMappingData(item.mappingData);
+    const initExpand: Record<string, boolean> = {};
+    item.mappingData.mapped_questions.forEach(q => { initExpand[q.question_number] = true; });
+    setExpandedQuestions(initExpand);
+    const firstMatched = item.mappingData.mapped_questions.find(q => q.status === 'matched');
+    if (firstMatched) {
+      setSelectedQuestionNumber(firstMatched.question_number);
+    }
+    setActiveNav('exams');
   };
 
   const handleSignOut = () => {
@@ -691,7 +880,7 @@ export default function Home() {
 
             <button
               type="submit"
-              className="mt-2 py-3.5 px-6 rounded-full bg-[#1E1E1E] text-white font-bold text-sm hover:bg-[#333333] transition shadow-md flex items-center justify-center gap-2"
+              className="mt-2 py-3.5 px-6 rounded-full bg-[#1E1E1E] text-white font-bold text-sm hover:bg-[#333333] transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <LogIn className="w-4 h-4" />
               <span>Sign In to VedaAI Workspace</span>
@@ -723,7 +912,7 @@ export default function Home() {
               {activeNav === 'home' && 'Teacher Overview'}
               {activeNav === 'classroom' && 'My Classroom'}
               {activeNav === 'assignments' && 'Assignments'}
-              {activeNav === 'library' && 'Question Library'}
+              {activeNav === 'library' && 'My Library'}
               {activeNav === 'settings' && 'Account Settings'}
             </span>
           </div>
@@ -948,27 +1137,163 @@ export default function Home() {
 
         {/* MAIN BODY AREA */}
         <main className="flex-1 overflow-y-auto p-6 md:p-10 max-w-7xl mx-auto w-full flex flex-col gap-8">
-          {/* VIEW SWITCHER BASED ON SIDEBAR NAVIGATION */}
+          {/* HOME TAB: WITH CHANGABLE ACADEMIC YEAR & CHARTS */}
           {activeNav === 'home' && (
-            <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
-              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-[#1E1E1E]">Welcome back, {userProfile.name} 👋</h2>
-                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30">Active Academic Year 2026</span>
+            <div className="flex flex-col gap-8 max-w-5xl mx-auto w-full">
+              {/* Welcome Banner & Academic Year Selector */}
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-[#1E1E1E]">Welcome back, {userProfile.name} 👋</h2>
+                    <p className="text-xs sm:text-sm text-[#777067] mt-1">Here is your automated assessment breakdown for {userProfile.school}.</p>
+                  </div>
+
+                  {/* Dynamic Changable Academic Year Selector */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-xs font-bold text-[#888077]">Academic Year:</span>
+                    <select
+                      value={academicYear}
+                      onChange={(e) => {
+                        const yr = e.target.value;
+                        setAcademicYear(yr);
+                        try { localStorage.setItem('veda_academic_year', yr); } catch(e){}
+                      }}
+                      className="px-3.5 py-1.5 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 font-bold text-xs focus:outline-none cursor-pointer hover:bg-[#FFE6DC] transition shadow-sm"
+                    >
+                      <option value="2026-2027">Academic Year 2026-2027</option>
+                      <option value="2025-2026">Academic Year 2025-2026</option>
+                      <option value="2024-2025">Academic Year 2024-2025</option>
+                      <option value="2023-2024">Academic Year 2023-2024</option>
+                    </select>
+                  </div>
                 </div>
-                <p className="text-xs sm:text-sm text-[#777067]">Here is your automated assessment breakdown for {userProfile.school}.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                     <span className="text-xs text-[#888077] font-semibold uppercase">Total Assessments Mapped</span>
-                    <span className="text-3xl font-extrabold text-[#1E1E1E] mt-1">24</span>
+                    <span className="text-3xl font-extrabold text-[#1E1E1E] mt-1">{24 + libraryItems.length}</span>
+                    <span className="text-[11px] text-[#888077] mt-1">{academicYear} Batch</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                     <span className="text-xs text-[#888077] font-semibold uppercase">Average Class Score</span>
                     <span className="text-3xl font-extrabold text-emerald-600 mt-1">88.5%</span>
+                    <span className="text-[11px] text-emerald-700 font-semibold mt-1">+4.2% vs previous term</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
-                    <span className="text-xs text-[#888077] font-semibold uppercase">Pending Vision OCR Reviews</span>
-                    <span className="text-3xl font-extrabold text-[#FF5722] mt-1">3</span>
+                    <span className="text-xs text-[#888077] font-semibold uppercase">Saved in Library</span>
+                    <span className="text-3xl font-extrabold text-[#FF5722] mt-1">{libraryItems.length}</span>
+                    <span className="text-[11px] text-[#888077] mt-1">Ready for review & load</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* VISUALIZATION & CHARTS SECTION */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Chart 1: Grade Distribution Breakdown */}
+                <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-[#1E1E1E] flex items-center gap-2">
+                      <PieChart className="w-5 h-5 text-[#FF5722]" /> Grade Distribution Breakdown
+                    </h3>
+                    <span className="text-xs text-[#888077]">Class 10-A ({academicYear})</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3.5 mt-2">
+                    {/* Grade A+ */}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Grade A+ (90% - 100%)</span>
+                        <span className="text-emerald-600">14 Students (37%)</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: '37%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Grade A */}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Grade A (75% - 89%)</span>
+                        <span className="text-blue-600">16 Students (42%)</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-blue-500 h-full rounded-full" style={{ width: '42%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Grade B */}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Grade B (50% - 74%)</span>
+                        <span className="text-amber-600">6 Students (16%)</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-amber-500 h-full rounded-full" style={{ width: '16%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Grade C */}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Grade C (&lt; 50%)</span>
+                        <span className="text-rose-600">2 Students (5%)</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-rose-500 h-full rounded-full" style={{ width: '5%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chart 2: Subject Topic Mastery */}
+                <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-[#1E1E1E] flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-[#FF5722]" /> Subject Topic Mastery
+                    </h3>
+                    <span className="text-xs text-[#888077]">Computer Networks</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3.5 mt-2">
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>TCP/IP & OSI Model Layering</span>
+                        <span className="text-[#FF5722]">92% Mastery</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-[#FF5722] h-full rounded-full" style={{ width: '92%' }}></div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Hub vs Switch vs Router</span>
+                        <span className="text-[#FF5722]">84% Mastery</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-[#FF5722] h-full rounded-full" style={{ width: '84%' }}></div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>Fourier Series & Signal Analysis</span>
+                        <span className="text-amber-600">71% Mastery</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-amber-500 h-full rounded-full" style={{ width: '71%' }}></div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex justify-between font-bold text-[#1E1E1E]">
+                        <span>ISDN Architecture & Services</span>
+                        <span className="text-[#FF5722]">88% Mastery</span>
+                      </div>
+                      <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
+                        <div className="bg-[#FF5722] h-full rounded-full" style={{ width: '88%' }}></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1010,11 +1335,69 @@ export default function Home() {
             </div>
           )}
 
+          {/* MY LIBRARY: WITH LOAD & DELETE OPTIONS */}
           {activeNav === 'library' && (
             <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
-              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
-                <h2 className="text-2xl font-bold text-[#1E1E1E]">Exam Paper & Question Bank Library</h2>
-                <p className="text-xs sm:text-sm text-[#777067]">Access digitized past papers and AI generated question rubrics.</p>
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-6">
+                <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#1E1E1E]">My Assessment Library</h2>
+                    <p className="text-xs sm:text-sm text-[#777067] mt-1">Stored digitized exam papers, answer mapping records & AI grades.</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveNav('exams')}
+                    className="px-4.5 py-2.5 rounded-full bg-[#1E1E1E] text-white text-xs font-bold hover:bg-[#333333] transition flex items-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <Plus className="w-4 h-4" /> Grade New Assessment
+                  </button>
+                </div>
+
+                {libraryItems.length === 0 ? (
+                  <div className="p-12 text-center flex flex-col items-center gap-3 bg-[#F8F7F4] rounded-2xl border border-[#E8E5DF]">
+                    <BookOpen className="w-10 h-10 text-[#B3ADA1]" />
+                    <span className="font-bold text-[#1E1E1E] text-base">No Saved Assessments in Library</span>
+                    <p className="text-xs text-[#888077] max-w-sm">When you complete an assessment mapping in the Exams tab, click "Save to My Library" to store it here.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {libraryItems.map(item => (
+                      <div key={item.id} className="p-5 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] hover:border-[#B3ADA1] transition flex flex-col gap-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF5722]">{item.academicYear} Batch</span>
+                            <h4 className="text-sm font-bold text-[#1E1E1E] leading-snug">{item.title}</h4>
+                            <span className="text-xs text-[#888077]">Saved on {item.dateSaved}</span>
+                          </div>
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                            {item.scorePercentage}% Score
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-[#554F49] font-mono bg-white p-3 rounded-xl border border-[#E8E5DF]">
+                          <span>Total Score: {item.totalScore} / {item.maxPossibleScore} Marks</span>
+                          <span>{item.totalQuestions} Questions</span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            onClick={() => handleLoadLibraryItem(item)}
+                            className="px-4 py-2 rounded-xl bg-[#1E1E1E] text-white hover:bg-[#FF5722] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View Assessment
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteLibraryItem(item.id)}
+                            className="p-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition cursor-pointer"
+                            title="Delete Assessment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1030,8 +1413,11 @@ export default function Home() {
                     <div className="w-16 h-16 rounded-full bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center mb-2 shadow-sm animate-float">
                       <GraduationCap className="w-8 h-8 text-[#FF5722]" />
                     </div>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1E1E1E] tracking-tight">
-                      Upload <span className="text-[#FF5722] underline decoration-wavy decoration-[#FF5722]/40">Question Paper & Answer Sheets</span>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1E1E1E] tracking-tight leading-tight">
+                      Upload <span className="text-[#FF5722] relative inline-block">
+                        Question Paper & Answer Sheets
+                        <span className="absolute left-0 -bottom-1 w-full h-2 bg-[#FF5722]/30 rounded-full"></span>
+                      </span>
                     </h2>
                     <p className="text-sm sm:text-base text-[#777067] max-w-lg">
                       Upload original question paper and student handwritten response sheets to digitize, map, and grade automatically.
@@ -1171,16 +1557,26 @@ export default function Home() {
                         </h3>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs font-mono font-bold">
-                        <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {mappingData.summary.correct_count || 0} Correct
-                        </span>
-                        <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
-                          {mappingData.summary.partial_count || 0} Partial
-                        </span>
-                        <span className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200">
-                          {mappingData.summary.incorrect_count || 0} Incorrect
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleSaveToLibrary}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#FF5722] bg-[#FFF1EC] hover:bg-[#FFE6DC] text-[#FF5722] font-bold text-xs transition shadow-sm cursor-pointer"
+                        >
+                          <Bookmark className="w-4 h-4" />
+                          Save to My Library
+                        </button>
+
+                        <div className="flex items-center gap-2 text-xs font-mono font-bold">
+                          <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {mappingData.summary.correct_count || 0} Correct
+                          </span>
+                          <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                            {mappingData.summary.partial_count || 0} Partial
+                          </span>
+                          <span className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                            {mappingData.summary.incorrect_count || 0} Incorrect
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1682,7 +2078,7 @@ export default function Home() {
               />
               <button 
                 onClick={handleSendAiChatMessage}
-                className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818]"
+                className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818] cursor-pointer"
               >
                 Send
               </button>
@@ -1723,7 +2119,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={() => setIsEditingSchool(true)}
-                  className="mt-2 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#E8E5DF] text-[#1E1E1E] font-bold text-xs flex items-center justify-center gap-2 transition"
+                  className="mt-2 py-2.5 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#E8E5DF] text-[#1E1E1E] font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-[#FF5722]" /> Edit School Details
                 </button>
@@ -1770,7 +2166,7 @@ export default function Home() {
                 <div className="flex items-center justify-between pt-2">
                   <button
                     onClick={() => setIsEditingSchool(false)}
-                    className="px-4 py-2 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold"
+                    className="px-4 py-2 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -1779,7 +2175,7 @@ export default function Home() {
                       saveSchoolDetails(editSchoolForm);
                       setIsEditingSchool(false);
                     }}
-                    className="px-5 py-2 rounded-xl bg-[#1E1E1E] text-white font-bold flex items-center gap-1.5"
+                    className="px-5 py-2 rounded-xl bg-[#1E1E1E] text-white font-bold flex items-center gap-1.5 cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" /> Save Changes
                   </button>
@@ -1863,7 +2259,7 @@ export default function Home() {
               <div className="flex items-center justify-between pt-3 border-t border-[#E8E5DF]">
                 <button
                   onClick={() => setShowAccountSettingsModal(false)}
-                  className="px-5 py-2.5 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold text-xs"
+                  className="px-5 py-2.5 rounded-xl bg-[#F8F7F4] text-[#554F49] font-bold text-xs cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1872,7 +2268,7 @@ export default function Home() {
                     saveUserProfile(editProfileForm);
                     setShowAccountSettingsModal(false);
                   }}
-                  className="px-6 py-2.5 rounded-full bg-[#1E1E1E] text-white font-bold text-xs hover:bg-[#333333] transition flex items-center gap-2 shadow-md"
+                  className="px-6 py-2.5 rounded-full bg-[#1E1E1E] text-white font-bold text-xs hover:bg-[#333333] transition flex items-center gap-2 shadow-md cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Save Account Details</span>
