@@ -446,25 +446,77 @@ export default function Home() {
       if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
         ansData = {
           answer_blocks: [
+            // Q1(a) spans Pages 1 to 5
             {
               matched_question_number: '1(a)',
               raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
               pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
             },
             {
+              matched_question_number: '1(a)',
+              raw_text: 'Application layer is responsible for high-level protocols such as HTTP, FTP, and SMTP. Transport layer manages end-to-end data transmission using TCP or UDP.',
+              pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
+            },
+            {
+              matched_question_number: '1(a)',
+              raw_text: 'Internet layer handles IP routing, packets, and address resolution across networks. Network access layer handles physical framing and hardware MAC addresses.',
+              pages: [{ page_number: 3, bbox: [100, 70, 900, 930] }]
+            },
+            {
+              matched_question_number: '1(a)',
+              raw_text: 'Comparison with OSI 7-layer architecture: OSI separates Session and Presentation layers, whereas TCP/IP combines them into the Application Layer.',
+              pages: [{ page_number: 4, bbox: [100, 70, 900, 930] }]
+            },
+            {
+              matched_question_number: '1(a)',
+              raw_text: 'Conclusion: Data flows downwards through encapsulation from Application to Physical, and decapsulates at receiving host.',
+              pages: [{ page_number: 5, bbox: [100, 70, 900, 930] }]
+            },
+
+            // Q2(a) spans Pages 6 to 7
+            {
               matched_question_number: '2(a)',
               raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
               pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
             },
             {
+              matched_question_number: '2(a)',
+              raw_text: 'Hub operates at Layer 1 (Physical) and broadcasts to all ports. Switch operates at Layer 2 (Data Link) using MAC table. Router operates at Layer 3 (Network) using IP routing.',
+              pages: [{ page_number: 7, bbox: [100, 70, 900, 930] }]
+            },
+
+            // Q2(b) spans Pages 8 to 9
+            {
               matched_question_number: '2(b)',
-              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves.',
+              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves representation.',
               pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
             },
             {
+              matched_question_number: '2(b)',
+              raw_text: 'Any periodic signal can be decomposed into a sum of sine and cosine waves at harmonic frequencies to analyze bandwidth requirements.',
+              pages: [{ page_number: 9, bbox: [100, 70, 900, 930] }]
+            },
+
+            // Q3(a) spans Pages 10 to 13
+            {
               matched_question_number: '3(a)',
-              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast data transmission.',
+              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast digital transmission.',
               pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
+            },
+            {
+              matched_question_number: '3(a)',
+              raw_text: 'ISDN provides digital connectivity over traditional copper phone lines using BRI (Basic Rate Interface) and PRI (Primary Rate Interface).',
+              pages: [{ page_number: 11, bbox: [100, 70, 900, 930] }]
+            },
+            {
+              matched_question_number: '3(a)',
+              raw_text: 'BRI consists of 2 B-channels (64 kbps data/voice) and 1 D-channel (16 kbps signaling), totaling 144 kbps bandwidth.',
+              pages: [{ page_number: 12, bbox: [100, 70, 900, 930] }]
+            },
+            {
+              matched_question_number: '3(a)',
+              raw_text: 'PRI provides 23 B-channels + 1 D-channel (in US) or 30 B-channels + 1 D-channel (in Europe) for high-speed enterprise telecommunication.',
+              pages: [{ page_number: 13, bbox: [100, 70, 900, 930] }]
             }
           ]
         };

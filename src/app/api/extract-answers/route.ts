@@ -164,9 +164,42 @@ export async function POST(req: NextRequest) {
       });
 
       const pageResults = await Promise.all(pagePromises);
-      pageResults.forEach((blocks) => {
-        allExtractedBlocks.push(...blocks);
-      });
+      
+      // Page sequence continuation tracking across pages 1..N
+      let currentActiveQuestionNumber: string | null = null;
+
+      for (let pIdx = 0; pIdx < pageResults.length; pIdx++) {
+        const pageNum = pIdx + 1;
+        const pageBlocks = pageResults[pIdx] || [];
+
+        if (pageBlocks.length > 0) {
+          pageBlocks.forEach((block: any) => {
+            const rawQNum = block.matched_question_number;
+            if (rawQNum && String(rawQNum).trim() !== '' && String(rawQNum).trim().toLowerCase() !== 'null') {
+              currentActiveQuestionNumber = String(rawQNum).trim();
+              allExtractedBlocks.push({
+                ...block,
+                matched_question_number: currentActiveQuestionNumber,
+              });
+            } else if (currentActiveQuestionNumber) {
+              allExtractedBlocks.push({
+                ...block,
+                matched_question_number: currentActiveQuestionNumber,
+                pages: [{ page_number: pageNum, bbox: block.pages?.[0]?.bbox || [100, 50, 950, 950] }],
+              });
+            } else {
+              allExtractedBlocks.push(block);
+            }
+          });
+        } else if (currentActiveQuestionNumber) {
+          // Unlabeled continuation page between question headers
+          allExtractedBlocks.push({
+            matched_question_number: currentActiveQuestionNumber,
+            raw_text: `[Handwritten Answer Continuation for Q${currentActiveQuestionNumber} on Page ${pageNum}]`,
+            pages: [{ page_number: pageNum, bbox: [100, 50, 950, 950] }],
+          });
+        }
+      }
     } else {
       // Fallback text parsing
       for (const modelName of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
