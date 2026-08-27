@@ -391,11 +391,47 @@ export default function Home() {
     saveUserProfile({ ...editProfileForm, isLoggedIn: true });
   };
 
-  // Quick AI Assistant Chat Messages
+  // Quick AI Assistant Chat Messages & Typing state
   const [aiChatInput, setAiChatInput] = useState<string>('');
+  const [isAiAssistantTyping, setIsAiAssistantTyping] = useState<boolean>(false);
   const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    { role: 'assistant', text: `Hello ${userProfile.name}! I am VedaAI Assistant. How can I help you with your assessment grading, rubrics, or question papers today?` }
+    { role: 'assistant', text: `Hello ${userProfile.name}! I am VedaAI Assistant. How can I assist you with your assessment grading, classroom rubrics, topic mastery analytics, or platform navigation today?` }
   ]);
+
+  const handleSendAiChatMessage = async () => {
+    if (!aiChatInput.trim() || isAiAssistantTyping) return;
+    const userMsg = aiChatInput.trim();
+    const updatedMessages = [...aiChatMessages, { role: 'user' as const, text: userMsg }];
+    setAiChatMessages(updatedMessages);
+    setAiChatInput('');
+    setIsAiAssistantTyping(true);
+
+    try {
+      const res = await fetch('/api/chat-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          userProfile,
+          schoolDetails,
+          academicYear,
+          currentMappingSummary: mappingData?.summary || null,
+          libraryItemsCount: libraryItems.length,
+        }),
+      });
+
+      const data = await res.json();
+      const replyText = data.reply || "I am VedaAI Assistant. How can I assist you with your assessment grading or teacher toolkit today?";
+      setAiChatMessages(prev => [...prev, { role: 'assistant', text: replyText }]);
+    } catch (err) {
+      setAiChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        text: `Hello ${userProfile.name}! I am doing great and ready to help. You can upload exam papers, manage your library, and generate Bloom's taxonomy rubrics here.` 
+      }]);
+    } finally {
+      setIsAiAssistantTyping(false);
+    }
+  };
 
   // Notifications List
   const [notifications, setNotifications] = useState([
@@ -436,22 +472,7 @@ export default function Home() {
   const [activeHoveredBoxId, setActiveHoveredBoxId] = useState<string | null>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleSendAiChatMessage = () => {
-    if (!aiChatInput.trim()) return;
-    const userMsg = aiChatInput.trim();
-    setAiChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setAiChatInput('');
 
-    setTimeout(() => {
-      let reply = "I've analyzed your query. VedaAI handles automatic OCR extraction, question-answer matching, and detailed grading breakdown per question.";
-      if (userMsg.toLowerCase().includes('score') || userMsg.toLowerCase().includes('grade')) {
-        reply = "Based on current assessment data, student average score is 90% with strong performance on TCP/IP and ISDN questions.";
-      } else if (userMsg.toLowerCase().includes('rubric') || userMsg.toLowerCase().includes('paper')) {
-        reply = "You can use the AI Teacher's Toolkit in the sidebar to generate custom Bloom's taxonomy rubrics or new question papers!";
-      }
-      setAiChatMessages(prev => [...prev, { role: 'assistant', text: reply }]);
-    }, 600);
-  };
 
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
@@ -2266,22 +2287,30 @@ export default function Home() {
                   {msg.text}
                 </div>
               ))}
+              {isAiAssistantTyping && (
+                <div className="p-3 rounded-2xl text-xs bg-[#FFF1EC] border border-[#FF5722]/30 text-[#FF5722] self-start flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 animate-sparkle" />
+                  <span>VedaAI Assistant is thinking...</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-[#E8E5DF]">
               <input
                 type="text"
-                placeholder="Ask VedaAI anything about grading or assessment..."
+                disabled={isAiAssistantTyping}
+                placeholder="Ask VedaAI anything about grading, rubrics, or platform context..."
                 value={aiChatInput}
                 onChange={e => setAiChatInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendAiChatMessage()}
-                className="flex-1 px-4 py-2.5 rounded-full border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm focus:outline-none focus:border-[#FF5722]"
+                className="flex-1 px-4 py-2.5 rounded-full border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm focus:outline-none focus:border-[#FF5722] disabled:opacity-50"
               />
               <button 
+                disabled={isAiAssistantTyping || !aiChatInput.trim()}
                 onClick={handleSendAiChatMessage}
-                className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818] cursor-pointer"
+                className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818] disabled:opacity-50 cursor-pointer"
               >
-                Send
+                {isAiAssistantTyping ? 'Thinking...' : 'Send'}
               </button>
             </div>
           </div>
