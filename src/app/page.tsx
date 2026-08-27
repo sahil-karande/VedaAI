@@ -39,7 +39,14 @@ import {
   Minus,
   Download,
   Award,
-  Sparkle
+  Sparkle,
+  MessageSquare,
+  LogOut,
+  Sliders,
+  Layers,
+  FileSpreadsheet,
+  Zap,
+  CheckSquare
 } from 'lucide-react';
 import { renderPdfToPageImages, rotateImageDataUrl } from '@/lib/pdf-renderer';
 
@@ -97,9 +104,31 @@ interface MappingData {
 }
 
 export default function Home() {
-  // Navigation Sidebar & Header state
+  // Navigation Sidebar & Active View state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [activeNav, setActiveNav] = useState<'exams' | 'home' | 'classroom' | 'assignments' | 'library' | 'settings'>('exams');
   const [mobileTab, setMobileTab] = useState<'questions' | 'canvas'>('questions');
+
+  // Interactive Modals and Dropdowns
+  const [showToolkitModal, setShowToolkitModal] = useState<boolean>(false);
+  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [showAiChatModal, setShowAiChatModal] = useState<boolean>(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
+  const [showSchoolModal, setShowSchoolModal] = useState<boolean>(false);
+
+  // Quick AI Assistant Chat Messages
+  const [aiChatInput, setAiChatInput] = useState<string>('');
+  const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
+    { role: 'assistant', text: 'Hello Madhur! I am VedaAI Assistant. How can I help you with your assessment grading, rubrics, or question papers today?' }
+  ]);
+
+  // Notifications List
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Class 10 Unit Test Mapped', desc: 'Computer Science paper fully mapped & graded.', time: '10m ago', unread: true },
+    { id: 2, title: '3 Pending Answer Sheets', desc: 'Class 10-B submissions ready for AI Vision review.', time: '1h ago', unread: true },
+    { id: 3, title: 'Vision LLM Updated', desc: 'Groq Llama 3.3 70B Vision engine online.', time: '1d ago', unread: false },
+  ]);
 
   // File state
   const [questionPaper, setQuestionPaper] = useState<File | null>(null);
@@ -133,11 +162,27 @@ export default function Home() {
   const [activeHoveredBoxId, setActiveHoveredBoxId] = useState<string | null>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
+  const handleSendAiChatMessage = () => {
+    if (!aiChatInput.trim()) return;
+    const userMsg = aiChatInput.trim();
+    setAiChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setAiChatInput('');
+
+    setTimeout(() => {
+      let reply = "I've analyzed your query. VedaAI handles automatic OCR extraction, question-answer matching, and detailed grading breakdown per question.";
+      if (userMsg.toLowerCase().includes('score') || userMsg.toLowerCase().includes('grade')) {
+        reply = "Based on current assessment data, student average score is 90% with strong performance on TCP/IP and ISDN questions.";
+      } else if (userMsg.toLowerCase().includes('rubric') || userMsg.toLowerCase().includes('paper')) {
+        reply = "You can use the AI Teacher's Toolkit in the sidebar to generate custom Bloom's taxonomy rubrics or new question papers!";
+      }
+      setAiChatMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+    }, 600);
+  };
+
   // Scroll to target bounding box when a question is selected
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
 
-    // Find which page this question answer is on
     if (mappingData) {
       const targetQ = mappingData.mapped_questions.find(q => q.question_number === qNum);
       if (targetQ && targetQ.answers.length > 0 && targetQ.answers[0].pages.length > 0) {
@@ -154,7 +199,6 @@ export default function Home() {
     }, 100);
   };
 
-  // Toggle expand/collapse for single question or all
   const toggleQuestionExpand = (qNum: string) => {
     setExpandedQuestions(prev => ({ ...prev, [qNum]: !prev[qNum] }));
   };
@@ -169,7 +213,6 @@ export default function Home() {
     setExpandedQuestions(nextState);
   };
 
-  // Handle File Selections & Client-Side PDF Rendering
   const handleQuestionPaperChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -229,7 +272,6 @@ export default function Home() {
     }
   };
 
-  // Page rotation controls
   const handleRotatePage = (pageNum: number, direction: 'cw' | 'ccw' | 'reset') => {
     setPageRotations((prev) => {
       const current = prev[pageNum] || 0;
@@ -241,7 +283,6 @@ export default function Home() {
     });
   };
 
-  // Pipeline Execution
   const startProcessing = async () => {
     if (!questionPaper || !answerSheet) return;
 
@@ -251,7 +292,6 @@ export default function Home() {
     setSelectedQuestionNumber(null);
 
     try {
-      // Step 1: Extract Question Paper
       setProcessStep(1);
       setStatusText('Extracting question paper structure with Vision LLM...');
 
@@ -260,9 +300,7 @@ export default function Home() {
         const resQP = await fetch('/api/extract-questions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pageImages: questionPaperImages,
-          }),
+          body: JSON.stringify({ pageImages: questionPaperImages }),
         });
         qpData = await resQP.json();
       } else {
@@ -286,7 +324,6 @@ export default function Home() {
         };
       }
 
-      // Step 2: Extract Answer Sheet (applying user rotations to images if any)
       setProcessStep(2);
       setStatusText('Parsing student handwritten answer pages with Vision AI...');
 
@@ -309,9 +346,7 @@ export default function Home() {
         const resANS = await fetch('/api/extract-answers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pageImages: processedAnswerImages,
-          }),
+          body: JSON.stringify({ pageImages: processedAnswerImages }),
         });
         ansData = await resANS.json();
       } else {
@@ -329,29 +364,28 @@ export default function Home() {
           answer_blocks: [
             {
               matched_question_number: '1(a)',
-              raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers (Application, Presentation, Session, Transport, Network, Data Link, Physical).',
+              raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
               pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
             },
             {
               matched_question_number: '2(a)',
-              raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is a component connected to LAN that directly reaches destination. Router is physical device connecting multiple networks.',
+              raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
               pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
             },
             {
               matched_question_number: '2(b)',
-              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves of different frequency.',
+              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves.',
               pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
             },
             {
               matched_question_number: '3(a)',
-              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband integrated services digital network) and B-ISDN (broadband integrated services digital network). Connects telephone networks for fast data, image, files transmission.',
+              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast data transmission.',
               pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
             }
           ]
         };
       }
 
-      // Step 3: Run Assessment Mapping & Whole Answer Grading
       setProcessStep(3);
       setStatusText('Analyzing whole answers, calculating match scores & AI grading...');
 
@@ -369,7 +403,6 @@ export default function Home() {
         setMappingData(mapResult);
         setStatusText('Assessment Mapped & Graded Successfully');
         
-        // Expand all questions by default
         const initExpand: Record<string, boolean> = {};
         mapResult.mapped_questions.forEach(q => { initExpand[q.question_number] = true; });
         setExpandedQuestions(initExpand);
@@ -426,7 +459,6 @@ export default function Home() {
     return Array.from(pageSet).sort((a, b) => a - b);
   };
 
-  // Rotated Bounding Box style helper (Transparent outline box)
   const getRotatedBboxStyle = (bbox: [number, number, number, number], rotDeg: number) => {
     const [ymin, xmin, ymax, xmax] = bbox;
     const normRot = ((rotDeg % 360) + 360) % 360;
@@ -466,24 +498,31 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="w-9 h-9 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#F0EEE8] flex items-center justify-center text-[#1E1E1E] transition"
+            className="w-9 h-9 rounded-lg border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#F0EEE8] flex items-center justify-center text-[#1E1E1E] transition cursor-pointer"
             title="Toggle Sidebar"
           >
             {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           </button>
 
           <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-            <span className="text-[#888077]">Exams</span>
+            <span className="text-[#888077] cursor-pointer hover:underline" onClick={() => setActiveNav('exams')}>Exams</span>
             <span className="text-[#D5D0C6]">/</span>
-            <span className="text-[#1E1E1E] font-semibold">Assessment Workspace</span>
+            <span className="text-[#1E1E1E] font-semibold">
+              {activeNav === 'exams' && 'Assessment Workspace'}
+              {activeNav === 'home' && 'Teacher Overview'}
+              {activeNav === 'classroom' && 'My Classroom'}
+              {activeNav === 'assignments' && 'Assignments'}
+              {activeNav === 'library' && 'Question Library'}
+              {activeNav === 'settings' && 'Platform Settings'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {mappingData && (
+        <div className="flex items-center gap-3 relative">
+          {mappingData && activeNav === 'exams' && (
             <button
               onClick={resetAll}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E8E5DF] bg-[#FFFFFF] hover:bg-[#F8F7F4] text-[#1E1E1E] font-medium text-xs transition shadow-sm"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-[#E8E5DF] bg-[#FFFFFF] hover:bg-[#F8F7F4] text-[#1E1E1E] font-medium text-xs transition shadow-sm cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-[#888077]" />
               Reset Workspace
@@ -492,25 +531,105 @@ export default function Home() {
 
           <div className="w-px h-5 bg-[#E8E5DF] hidden sm:block"></div>
 
-          <button className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition">
+          {/* Help ? Button */}
+          <button 
+            onClick={() => setShowHelpModal(true)}
+            className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition cursor-pointer"
+            title="Help & Quick Start"
+          >
             <HelpCircle className="w-4 h-4" />
           </button>
 
-          <button className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-[#FF5722] rounded-full"></span>
-          </button>
+          {/* Notifications Bell Button */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition relative cursor-pointer"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {notifications.some(n => n.unread) && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-[#FF5722] rounded-full"></span>
+              )}
+            </button>
 
-          <button className="w-9 h-9 rounded-full bg-[#FF5722]/10 border border-[#FF5722]/30 hover:bg-[#FF5722]/20 flex items-center justify-center text-[#FF5722] transition">
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 top-12 w-80 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-xl p-4 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Notifications</span>
+                  <button 
+                    onClick={() => setNotifications(prev => prev.map(n => ({ ...n, unread: false })))}
+                    className="text-[11px] font-semibold text-[#FF5722] hover:underline"
+                  >
+                    Mark all read
+                  </button>
+                </div>
+                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                  {notifications.map(n => (
+                    <div key={n.id} className={`p-3 rounded-xl border text-xs flex flex-col gap-1 ${n.unread ? 'bg-[#FFF1EC] border-[#FF5722]/30' : 'bg-[#F8F7F4] border-[#E8E5DF]'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#1E1E1E]">{n.title}</span>
+                        <span className="text-[10px] text-[#888077]">{n.time}</span>
+                      </div>
+                      <p className="text-[#554F49] leading-snug">{n.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sparkle AI Assistant Button */}
+          <button 
+            onClick={() => setShowAiChatModal(true)}
+            className="w-9 h-9 rounded-full bg-[#FF5722]/10 border border-[#FF5722]/30 hover:bg-[#FF5722]/20 flex items-center justify-center text-[#FF5722] transition cursor-pointer"
+            title="Ask VedaAI Assistant"
+          >
             <Sparkles className="w-4 h-4 animate-sparkle" />
           </button>
 
-          <div className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF]">
-            <div className="w-8 h-8 rounded-full bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-bold text-xs">
-              MR
-            </div>
-            <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">Madhur Rastogi</span>
-            <ChevronDown className="w-4 h-4 text-[#888077] hidden md:inline" />
+          {/* User Profile Badge & Dropdown */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF] cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-bold text-xs">
+                MR
+              </div>
+              <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">Madhur Rastogi</span>
+              <ChevronDown className="w-4 h-4 text-[#888077] hidden md:inline" />
+            </button>
+
+            {showProfileDropdown && (
+              <div className="absolute right-0 top-12 w-64 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-xl p-3 flex flex-col gap-2 z-50">
+                <div className="p-3 rounded-xl bg-[#F8F7F4] flex flex-col">
+                  <span className="text-xs font-bold text-[#1E1E1E]">Madhur Rastogi</span>
+                  <span className="text-[11px] text-[#888077]">Senior Computer Science Educator</span>
+                  <span className="text-[10px] text-[#FF5722] font-semibold mt-1">Delhi Public School</span>
+                </div>
+                <button 
+                  onClick={() => { setActiveNav('settings'); setShowProfileDropdown(false); }}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]"
+                >
+                  <Settings className="w-4 h-4 text-[#888077]" /> Account Settings
+                </button>
+                <button 
+                  onClick={() => setShowSchoolModal(true)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]"
+                >
+                  <GraduationCap className="w-4 h-4 text-[#888077]" /> School Roster & License
+                </button>
+                <div className="w-full h-px bg-[#E8E5DF] my-1"></div>
+                <button 
+                  onClick={() => setShowProfileDropdown(false)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -520,7 +639,7 @@ export default function Home() {
         <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} border-r border-[#E8E5DF] bg-[#FFFFFF] flex flex-col justify-between transition-all duration-300 z-40 hidden md:flex shrink-0`}>
           <div className="p-5 flex flex-col gap-6">
             {/* VedaAI Logo Header */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveNav('exams')}>
               <div className="w-9 h-9 rounded-xl bg-[#1E1E1E] text-[#FFFFFF] flex items-center justify-center font-black text-lg tracking-widest shrink-0 shadow-md">
                 V
               </div>
@@ -533,7 +652,10 @@ export default function Home() {
             </div>
 
             {/* AI Teacher's Toolkit Button */}
-            <button className={`w-full py-3 px-3.5 rounded-xl border border-[#FF5722] bg-[#FFF1EC] text-[#FF5722] hover:bg-[#FFE6DC] font-semibold text-xs transition flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} shadow-sm`}>
+            <button 
+              onClick={() => setShowToolkitModal(true)}
+              className={`w-full py-3 px-3.5 rounded-xl border border-[#FF5722] bg-[#FFF1EC] text-[#FF5722] hover:bg-[#FFE6DC] font-semibold text-xs transition flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} shadow-sm cursor-pointer active:scale-95`}
+            >
               <div className="flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 shrink-0 animate-sparkle" />
                 {!sidebarCollapsed && <span>AI Teacher Toolkit</span>}
@@ -542,24 +664,53 @@ export default function Home() {
 
             {/* Navigation Menu */}
             <nav className="flex flex-col gap-1.5">
-              <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] transition">
-                <HomeIcon className="w-4 h-4 shrink-0 text-[#888077]" />
+              <button 
+                onClick={() => setActiveNav('home')}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeNav === 'home' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                }`}
+              >
+                <HomeIcon className={`w-4 h-4 shrink-0 ${activeNav === 'home' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>Home</span>}
               </button>
-              <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] transition">
-                <Users className="w-4 h-4 shrink-0 text-[#888077]" />
+
+              <button 
+                onClick={() => setActiveNav('classroom')}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeNav === 'classroom' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                }`}
+              >
+                <Users className={`w-4 h-4 shrink-0 ${activeNav === 'classroom' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>My Classroom</span>}
               </button>
-              <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] transition">
-                <FolderKanban className="w-4 h-4 shrink-0 text-[#888077]" />
+
+              <button 
+                onClick={() => setActiveNav('assignments')}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeNav === 'assignments' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                }`}
+              >
+                <FolderKanban className={`w-4 h-4 shrink-0 ${activeNav === 'assignments' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>Assignments</span>}
               </button>
-              <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF] transition shadow-sm">
-                <GraduationCap className="w-4 h-4 shrink-0 text-[#FF5722]" />
+
+              <button 
+                onClick={() => setActiveNav('exams')}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeNav === 'exams' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF] shadow-sm' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                }`}
+              >
+                <GraduationCap className={`w-4 h-4 shrink-0 ${activeNav === 'exams' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>Exams</span>}
               </button>
-              <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] transition">
-                <BookOpen className="w-4 h-4 shrink-0 text-[#888077]" />
+
+              <button 
+                onClick={() => setActiveNav('library')}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  activeNav === 'library' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                }`}
+              >
+                <BookOpen className={`w-4 h-4 shrink-0 ${activeNav === 'library' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>My Library</span>}
               </button>
             </nav>
@@ -567,7 +718,10 @@ export default function Home() {
 
           {/* Sidebar Bottom Profile Card */}
           <div className="p-4 border-t border-[#E8E5DF]">
-            <div className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center gap-3">
+            <div 
+              onClick={() => setShowSchoolModal(true)}
+              className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center gap-3 cursor-pointer hover:border-[#B3ADA1] transition"
+            >
               <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
                 DPS
               </div>
@@ -583,503 +737,722 @@ export default function Home() {
 
         {/* MAIN BODY AREA */}
         <main className="flex-1 overflow-y-auto p-6 md:p-10 max-w-7xl mx-auto w-full flex flex-col gap-8">
-          {/* UPLOAD SCREEN VIEW */}
-          {!mappingData && !isProcessing && (
-            <div className="flex flex-col gap-10 max-w-4xl mx-auto w-full py-6">
-              {/* Hero Header */}
-              <div className="text-center flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-full bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center mb-2 shadow-sm animate-float">
-                  <GraduationCap className="w-8 h-8 text-[#FF5722]" />
+          {/* VIEW SWITCHER BASED ON SIDEBAR NAVIGATION */}
+          {activeNav === 'home' && (
+            <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-[#1E1E1E]">Welcome back, Madhur Rastogi 👋</h2>
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30">Active Academic Year 2026</span>
                 </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1E1E1E] tracking-tight">
-                  Upload <span className="text-[#FF5722] underline decoration-wavy decoration-[#FF5722]/40">Question Paper & Answer Sheets</span>
-                </h2>
-                <p className="text-sm sm:text-base text-[#777067] max-w-lg">
-                  Upload original question paper and student handwritten response sheets to digitize, map, and grade automatically.
-                </p>
-              </div>
-
-              {/* Upload Dropzones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                {/* Dropzone 1: Question Paper */}
-                <div className="p-6 rounded-2xl border-2 border-dashed border-[#D5D0C6] hover:border-[#FF5722] bg-[#FFFFFF] hover:bg-[#FFF1EC]/30 transition group flex flex-col gap-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-wider font-bold text-[#554F49]">1. Question Paper</span>
-                    {questionPaper && (
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Ready ({questionPaperImages.length || 1} pgs)
-                      </span>
-                    )}
+                <p className="text-xs sm:text-sm text-[#777067]">Here is your automated assessment breakdown for Class 10 Computer Science.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                  <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
+                    <span className="text-xs text-[#888077] font-semibold uppercase">Total Assessments Mapped</span>
+                    <span className="text-3xl font-extrabold text-[#1E1E1E] mt-1">24</span>
                   </div>
-
-                  <label className="relative flex flex-col items-center justify-center w-full min-h-[220px] cursor-pointer rounded-xl p-4">
-                    <input
-                      type="file"
-                      accept=".pdf,image/*"
-                      onChange={handleQuestionPaperChange}
-                      className="hidden"
-                    />
-                    {questionPaper ? (
-                      <div className="flex flex-col items-center text-center p-2">
-                        <div className="w-12 h-14 rounded-lg bg-red-500 text-white flex items-center justify-center font-bold text-xs mb-3 shadow-md">
-                          PDF
-                        </div>
-                        <p className="text-sm font-bold text-[#1E1E1E] truncate max-w-[200px]">{questionPaper.name}</p>
-                        <p className="text-xs text-[#888077] mt-1">{(questionPaper.size / (1024 * 1024)).toFixed(2)} MB • {questionPaperImages.length || 1} Pages</p>
-                        <span className="mt-3 text-xs text-[#FF5722] font-semibold group-hover:underline">Click to replace file</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center text-center p-2">
-                        <UploadCloud className="w-12 h-12 text-[#B3ADA1] group-hover:text-[#FF5722] mb-3 transition" />
-                        <p className="text-base font-bold text-[#1E1E1E]">Upload Question Paper</p>
-                        <p className="text-xs text-[#888077] mt-1">Max 15MB (PDF, PNG, JPG)</p>
-                      </div>
-                    )}
-                  </label>
-                </div>
-
-                {/* Dropzone 2: Student Answer Sheet */}
-                <div className="p-6 rounded-2xl border-2 border-dashed border-[#D5D0C6] hover:border-[#FF5722] bg-[#FFFFFF] hover:bg-[#FFF1EC]/30 transition group flex flex-col gap-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-wider font-bold text-[#554F49]">2. Student Answer Sheet</span>
-                    {answerSheet && (
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Ready ({answerSheetPageImages.length || 1} pgs)
-                      </span>
-                    )}
+                  <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
+                    <span className="text-xs text-[#888077] font-semibold uppercase">Average Class Score</span>
+                    <span className="text-3xl font-extrabold text-emerald-600 mt-1">88.5%</span>
                   </div>
-
-                  <label className="relative flex flex-col items-center justify-center w-full min-h-[220px] cursor-pointer rounded-xl p-4">
-                    <input
-                      type="file"
-                      accept=".pdf,image/*"
-                      onChange={handleAnswerSheetChange}
-                      className="hidden"
-                    />
-                    {answerSheet ? (
-                      <div className="flex flex-col items-center text-center p-2">
-                        <div className="w-12 h-14 rounded-lg bg-red-500 text-white flex items-center justify-center font-bold text-xs mb-3 shadow-md">
-                          PDF
-                        </div>
-                        <p className="text-sm font-bold text-[#1E1E1E] truncate max-w-[200px]">{answerSheet.name}</p>
-                        <p className="text-xs text-[#888077] mt-1">{(answerSheet.size / (1024 * 1024)).toFixed(2)} MB • {answerSheetPageImages.length || 1} Pages</p>
-                        <span className="mt-3 text-xs text-[#FF5722] font-semibold group-hover:underline">Click to replace file</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center text-center p-2">
-                        <UploadCloud className="w-12 h-12 text-[#B3ADA1] group-hover:text-[#FF5722] mb-3 transition" />
-                        <p className="text-base font-bold text-[#1E1E1E]">Upload Answer Sheet</p>
-                        <p className="text-xs text-[#888077] mt-1">Max 25MB (Scanned PDF, PNG, JPG)</p>
-                      </div>
-                    )}
-                  </label>
+                  <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
+                    <span className="text-xs text-[#888077] font-semibold uppercase">Pending Vision OCR Reviews</span>
+                    <span className="text-3xl font-extrabold text-[#FF5722] mt-1">3</span>
+                  </div>
                 </div>
-              </div>
-
-              {/* Start Mapping Action Button */}
-              <div className="flex flex-col items-center gap-3">
-                <button
-                  onClick={startProcessing}
-                  disabled={!questionPaper || !answerSheet || isRenderingPdf}
-                  className="py-4 px-10 rounded-full font-bold text-base bg-[#1E1E1E] text-[#FFFFFF] hover:bg-[#333333] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-3 transition shadow-lg active:scale-95 cursor-pointer"
-                >
-                  <span>Start Mapping</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-                <p className="text-xs text-[#888077]">Once both files are uploaded, Vision AI correlates answers with questions</p>
               </div>
             </div>
           )}
 
-          {/* ANIMATED EXTRACTION LOADING SCREEN (Matches Figma Loading State) */}
-          {isProcessing && (
-            <div className="flex flex-col items-center justify-center min-h-[500px] max-w-2xl mx-auto w-full p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-md text-center gap-6">
-              <div className="relative w-24 h-24 rounded-2xl border-2 border-[#1E1E1E] flex items-center justify-center bg-[#FFF1EC] shadow-inner">
-                <Sparkles className="w-12 h-12 text-[#FF5722] animate-sparkle" />
+          {activeNav === 'classroom' && (
+            <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-6">
+                <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-4">
+                  <h2 className="text-2xl font-bold text-[#1E1E1E]">My Classroom Roster</h2>
+                  <button onClick={() => setActiveNav('exams')} className="px-4 py-2 rounded-xl bg-[#1E1E1E] text-white text-xs font-bold">Grade Exam Sheet</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-5 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] flex flex-col gap-2">
+                    <span className="text-xs font-bold text-[#FF5722]">Class 10-A (Computer Science)</span>
+                    <span className="text-sm font-bold text-[#1E1E1E]">38 Students Enrolled</span>
+                    <span className="text-xs text-[#888077]">Last Exam: Unit Test - Computer Networks (Mapped)</span>
+                  </div>
+                  <div className="p-5 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] flex flex-col gap-2">
+                    <span className="text-xs font-bold text-[#FF5722]">Class 10-B (Computer Science)</span>
+                    <span className="text-sm font-bold text-[#1E1E1E]">42 Students Enrolled</span>
+                    <span className="text-xs text-[#888077]">Last Exam: Mid-Term Revision (3 Pending)</span>
+                  </div>
+                </div>
               </div>
-
-              <div className="flex flex-col gap-2">
-                <h3 className="text-2xl font-bold text-[#1E1E1E]">Extracting...</h3>
-                <p className="text-xs sm:text-sm text-[#888077]">This may take a while. Vision AI is processing handwritten pages.</p>
-              </div>
-
-              <div className="w-full bg-[#F1EFEA] rounded-full h-2 overflow-hidden max-w-md">
-                <div 
-                  className="bg-[#FF5722] h-full transition-all duration-500 rounded-full" 
-                  style={{ width: `${(processStep / 3) * 100}%` }}
-                ></div>
-              </div>
-
-              <span className="text-xs font-mono font-semibold text-[#554F49] bg-[#F8F7F4] px-4 py-2 rounded-lg border border-[#E8E5DF]">
-                {statusText}
-              </span>
             </div>
           )}
 
-          {/* WORKSPACE RESULTS VIEW (Matches Figma Assessment Mapping Screen) */}
-          {mappingData && !isProcessing && (
-            <div className="flex flex-col gap-6">
-              {/* ASSESSMENT GRADING SUMMARY BANNER */}
-              <div className="p-6 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E5DF] pb-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs uppercase tracking-widest font-bold text-[#888077]">Grading Overview</span>
-                    <h3 className="text-2xl sm:text-3xl font-extrabold text-[#1E1E1E]">
-                      Score: {mappingData.summary.total_score || 0} / {mappingData.summary.max_possible_score || 15} Marks
-                      <span className="ml-3 text-xs font-bold px-3 py-1 rounded-full bg-[#1E1E1E] text-[#FFFFFF]">
-                        {mappingData.summary.score_percentage || 0}% Total
-                      </span>
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold">
-                    <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {mappingData.summary.correct_count || 0} Correct
-                    </span>
-                    <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
-                      {mappingData.summary.partial_count || 0} Partial
-                    </span>
-                    <span className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200">
-                      {mappingData.summary.incorrect_count || 0} Incorrect
-                    </span>
-                  </div>
+          {activeNav === 'assignments' && (
+            <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                <h2 className="text-2xl font-bold text-[#1E1E1E]">Assignments & Submissions</h2>
+                <p className="text-xs sm:text-sm text-[#777067]">Manage daily student homework & automated AI grading tasks.</p>
+                <div className="p-4 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] text-xs font-semibold text-[#1E1E1E]">
+                  📄 Assignment 4: TCP/IP vs OSI Model Layering — 35/38 Submitted
                 </div>
-
-                {mappingData.summary.overall_feedback && (
-                  <p className="text-xs sm:text-sm text-[#554F49] font-mono leading-relaxed bg-[#F8F7F4] p-3.5 rounded-xl border border-[#E8E5DF]">
-                    <span className="font-bold text-[#1E1E1E]">AI Executive Summary: </span>
-                    {mappingData.summary.overall_feedback}
-                  </p>
-                )}
               </div>
+            </div>
+          )}
 
-              {/* MOBILE VIEW SWITCHER TABS */}
-              <div className="flex md:hidden items-center justify-center p-1 rounded-xl bg-[#E8E5DF]">
-                <button
-                  onClick={() => setMobileTab('questions')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mobileTab === 'questions' ? 'bg-[#FFFFFF] text-[#1E1E1E] shadow-sm' : 'text-[#777067]'}`}
-                >
-                  Questions ({mappingData.mapped_questions.length})
-                </button>
-                <button
-                  onClick={() => setMobileTab('canvas')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mobileTab === 'canvas' ? 'bg-[#FFFFFF] text-[#1E1E1E] shadow-sm' : 'text-[#777067]'}`}
-                >
-                  Answer Sheet Canvas
-                </button>
+          {activeNav === 'library' && (
+            <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+              <div className="p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                <h2 className="text-2xl font-bold text-[#1E1E1E]">Exam Paper & Question Bank Library</h2>
+                <p className="text-xs sm:text-sm text-[#777067]">Access digitized past papers and AI generated question rubrics.</p>
               </div>
+            </div>
+          )}
 
-              {/* SPLIT SCREEN WORKSPACE */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                {/* LEFT COLUMN: EXTRACTED QUESTIONS (FROM QUESTION PAPER) */}
-                <div className={`md:col-span-5 flex flex-col gap-4 ${mobileTab === 'canvas' ? 'hidden md:flex' : 'flex'}`}>
-                  {/* Panel Header */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#554F49]">
-                      Extracted Questions (from question paper)
-                    </span>
-                    <button
-                      onClick={toggleExpandAll}
-                      className="text-xs font-semibold text-[#FF5722] hover:underline"
-                    >
-                      Expand / Collapse All
-                    </button>
+          {/* EXAMS ASSESSMENT MAPPING VIEW */}
+          {activeNav === 'exams' && (
+            <>
+              {/* UPLOAD SCREEN VIEW */}
+              {!mappingData && !isProcessing && (
+                <div className="flex flex-col gap-10 max-w-4xl mx-auto w-full py-6">
+                  {/* Hero Header */}
+                  <div className="text-center flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 rounded-full bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center mb-2 shadow-sm animate-float">
+                      <GraduationCap className="w-8 h-8 text-[#FF5722]" />
+                    </div>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1E1E1E] tracking-tight">
+                      Upload <span className="text-[#FF5722] underline decoration-wavy decoration-[#FF5722]/40">Question Paper & Answer Sheets</span>
+                    </h2>
+                    <p className="text-sm sm:text-base text-[#777067] max-w-lg">
+                      Upload original question paper and student handwritten response sheets to digitize, map, and grade automatically.
+                    </p>
                   </div>
 
-                  {/* Filter Pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                    <button
-                      onClick={() => setActiveTab('all')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                        activeTab === 'all' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                      }`}
-                    >
-                      All ({mappingData.mapped_questions.length})
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('matched')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                        activeTab === 'matched' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                      }`}
-                    >
-                      Matched ({mappingData.summary.matched_questions})
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('unanswered')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                        activeTab === 'unanswered' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                      }`}
-                    >
-                      Unanswered ({mappingData.summary.unanswered_questions})
-                    </button>
-                  </div>
+                  {/* Upload Dropzones */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                    {/* Dropzone 1: Question Paper */}
+                    <div className="p-6 rounded-2xl border-2 border-dashed border-[#D5D0C6] hover:border-[#FF5722] bg-[#FFFFFF] hover:bg-[#FFF1EC]/30 transition group flex flex-col gap-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wider font-bold text-[#554F49]">1. Question Paper</span>
+                        {questionPaper && (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Ready ({questionPaperImages.length || 1} pgs)
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Question Cards List */}
-                  <div className="flex flex-col gap-3 max-h-[720px] overflow-y-auto pr-1">
-                    {mappingData.mapped_questions
-                      .filter(q => {
-                        if (activeTab === 'matched') return q.status === 'matched';
-                        if (activeTab === 'unanswered') return q.status === 'unanswered';
-                        return true;
-                      })
-                      .map((q, idx) => {
-                        const isSelected = selectedQuestionNumber === q.question_number;
-                        const isExpanded = expandedQuestions[q.question_number] ?? true;
-
-                        return (
-                          <div
-                            key={q.question_number}
-                            onClick={() => handleSelectQuestion(q.question_number)}
-                            className={`p-4 rounded-xl border transition cursor-pointer flex flex-col gap-3 ${
-                              isSelected
-                                ? 'bg-[#FFFFFF] border-[#1E1E1E] ring-2 ring-[#1E1E1E]/20 shadow-md'
-                                : 'bg-[#FFFFFF] border-[#E8E5DF] hover:border-[#B3ADA1]'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3">
-                                <div className="w-7 h-7 rounded-full bg-[#1E1E1E] text-[#FFFFFF] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                                  {idx + 1}
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-[11px] font-mono text-[#888077] font-semibold">Q{q.question_number}</span>
-                                  <h4 className="text-xs sm:text-sm font-semibold text-[#1E1E1E] leading-snug">{q.question_text}</h4>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                {q.status === 'matched' ? (
-                                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    {q.marks_awarded || 0} / {q.max_marks || 5}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#F8F7F4] text-[#888077] border border-[#E8E5DF]">
-                                    0 / {q.max_marks || 5}
-                                  </span>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleQuestionExpand(q.question_number);
-                                  }}
-                                  className="text-[#888077] hover:text-[#1E1E1E]"
-                                >
-                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </button>
-                              </div>
+                      <label className="relative flex flex-col items-center justify-center w-full min-h-[220px] cursor-pointer rounded-xl p-4">
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={handleQuestionPaperChange}
+                          className="hidden"
+                        />
+                        {questionPaper ? (
+                          <div className="flex flex-col items-center text-center p-2">
+                            <div className="w-12 h-14 rounded-lg bg-red-500 text-white flex items-center justify-center font-bold text-xs mb-3 shadow-md">
+                              PDF
                             </div>
-
-                            {/* Expanded Details & AI Feedback */}
-                            {isExpanded && q.status === 'matched' && (
-                              <div className="pt-2 border-t border-[#E8E5DF] flex flex-col gap-2 text-xs">
-                                <div className="flex items-center justify-between text-[11px] text-[#888077] font-mono">
-                                  <span>{q.match_percentage || 90}% Match</span>
-                                  <span>Answer Pages: {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).join(', ')}</span>
-                                </div>
-
-                                {q.ai_feedback && (
-                                  <div className="p-3 rounded-lg bg-[#FFF1EC] border border-[#FF5722]/20 text-[#1E1E1E] flex flex-col gap-1">
-                                    <span className="font-bold text-[11px] text-[#FF5722]">AI Feedback</span>
-                                    <p className="text-xs leading-relaxed text-[#554F49]">{q.ai_feedback}</p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            <p className="text-sm font-bold text-[#1E1E1E] truncate max-w-[200px]">{questionPaper.name}</p>
+                            <p className="text-xs text-[#888077] mt-1">{(questionPaper.size / (1024 * 1024)).toFixed(2)} MB • {questionPaperImages.length || 1} Pages</p>
+                            <span className="mt-3 text-xs text-[#FF5722] font-semibold group-hover:underline">Click to replace file</span>
                           </div>
-                        );
-                      })}
+                        ) : (
+                          <div className="flex flex-col items-center text-center p-2">
+                            <UploadCloud className="w-12 h-12 text-[#B3ADA1] group-hover:text-[#FF5722] mb-3 transition" />
+                            <p className="text-base font-bold text-[#1E1E1E]">Upload Question Paper</p>
+                            <p className="text-xs text-[#888077] mt-1">Max 15MB (PDF, PNG, JPG)</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+
+                    {/* Dropzone 2: Student Answer Sheet */}
+                    <div className="p-6 rounded-2xl border-2 border-dashed border-[#D5D0C6] hover:border-[#FF5722] bg-[#FFFFFF] hover:bg-[#FFF1EC]/30 transition group flex flex-col gap-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wider font-bold text-[#554F49]">2. Student Answer Sheet</span>
+                        {answerSheet && (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Ready ({answerSheetPageImages.length || 1} pgs)
+                          </span>
+                        )}
+                      </div>
+
+                      <label className="relative flex flex-col items-center justify-center w-full min-h-[220px] cursor-pointer rounded-xl p-4">
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={handleAnswerSheetChange}
+                          className="hidden"
+                        />
+                        {answerSheet ? (
+                          <div className="flex flex-col items-center text-center p-2">
+                            <div className="w-12 h-14 rounded-lg bg-red-500 text-white flex items-center justify-center font-bold text-xs mb-3 shadow-md">
+                              PDF
+                            </div>
+                            <p className="text-sm font-bold text-[#1E1E1E] truncate max-w-[200px]">{answerSheet.name}</p>
+                            <p className="text-xs text-[#888077] mt-1">{(answerSheet.size / (1024 * 1024)).toFixed(2)} MB • {answerSheetPageImages.length || 1} Pages</p>
+                            <span className="mt-3 text-xs text-[#FF5722] font-semibold group-hover:underline">Click to replace file</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center text-center p-2">
+                            <UploadCloud className="w-12 h-12 text-[#B3ADA1] group-hover:text-[#FF5722] mb-3 transition" />
+                            <p className="text-base font-bold text-[#1E1E1E]">Upload Answer Sheet</p>
+                            <p className="text-xs text-[#888077] mt-1">Max 25MB (Scanned PDF, PNG, JPG)</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Start Mapping Action Button */}
+                  <div className="flex flex-col items-center gap-3">
+                    <button
+                      onClick={startProcessing}
+                      disabled={!questionPaper || !answerSheet || isRenderingPdf}
+                      className="py-4 px-10 rounded-full font-bold text-base bg-[#1E1E1E] text-[#FFFFFF] hover:bg-[#333333] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-3 transition shadow-lg active:scale-95 cursor-pointer"
+                    >
+                      <span>Start Mapping</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                    <p className="text-xs text-[#888077]">Once both files are uploaded, Vision AI correlates answers with questions</p>
                   </div>
                 </div>
+              )}
 
-                {/* RIGHT COLUMN: ANSWER SHEET CANVAS (Matches Figma Canvas Header & Green Boxes) */}
-                <div 
-                  ref={viewerContainerRef}
-                  className={`md:col-span-7 bg-[#FFFFFF] border border-[#E8E5DF] rounded-2xl p-4 flex flex-col gap-4 max-h-[800px] overflow-hidden relative shadow-sm ${mobileTab === 'questions' ? 'hidden md:flex' : 'flex'}`}
-                >
-                  {/* Canvas Toolbar Header */}
-                  <div className="flex items-center justify-between text-xs font-semibold text-[#554F49] pb-3 border-b border-[#E8E5DF]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[#1E1E1E]">Answer Sheet</span>
-                      <span className="text-[11px] text-[#888077]">({answerSheetPageImages.length || 1} Pages Total)</span>
-                    </div>
-
-                    {/* Canvas Controls */}
-                    <div className="flex items-center gap-3">
-                      {/* Zoom Controls */}
-                      <div className="flex items-center gap-1 bg-[#F8F7F4] p-1 rounded-lg border border-[#E8E5DF]">
-                        <button
-                          onClick={() => setCanvasZoom(z => Math.max(50, z - 15))}
-                          className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
-                          title="Zoom Out"
-                        >
-                          <ZoomOut className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="px-2 text-[11px] font-mono font-bold text-[#1E1E1E]">{canvasZoom}%</span>
-                        <button
-                          onClick={() => setCanvasZoom(z => Math.min(200, z + 15))}
-                          className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
-                          title="Zoom In"
-                        >
-                          <ZoomIn className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Pagination Controls */}
-                      <div className="flex items-center gap-1.5 bg-[#F8F7F4] px-2 py-1 rounded-lg border border-[#E8E5DF] text-[11px] font-mono font-bold">
-                        <button
-                          disabled={currentCanvasPage <= 1}
-                          onClick={() => setCurrentCanvasPage(p => Math.max(1, p - 1))}
-                          className="disabled:opacity-30 hover:text-[#FF5722]"
-                        >
-                          &lt;
-                        </button>
-                        <span>Page {currentCanvasPage} of {getPageNumbers().length || 1}</span>
-                        <button
-                          disabled={currentCanvasPage >= getPageNumbers().length}
-                          onClick={() => setCurrentCanvasPage(p => Math.min(getPageNumbers().length, p + 1))}
-                          className="disabled:opacity-30 hover:text-[#FF5722]"
-                        >
-                          &gt;
-                        </button>
-                      </div>
-                    </div>
+              {/* ANIMATED EXTRACTION LOADING SCREEN */}
+              {isProcessing && (
+                <div className="flex flex-col items-center justify-center min-h-[500px] max-w-2xl mx-auto w-full p-8 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-md text-center gap-6">
+                  <div className="relative w-24 h-24 rounded-2xl border-2 border-[#1E1E1E] flex items-center justify-center bg-[#FFF1EC] shadow-inner">
+                    <Sparkles className="w-12 h-12 text-[#FF5722] animate-sparkle" />
                   </div>
 
-                  {/* Canvas View Area */}
-                  <div className="flex-1 overflow-y-auto relative flex flex-col items-center gap-6 p-2">
-                    {getPageNumbers()
-                      .filter(pNum => pNum === currentCanvasPage || getPageNumbers().length <= 3)
-                      .map((pageNum) => {
-                        const pageImg = answerSheetPageImages[pageNum - 1];
-                        const rotDeg = pageRotations[pageNum] || 0;
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-2xl font-bold text-[#1E1E1E]">Extracting...</h3>
+                    <p className="text-xs sm:text-sm text-[#888077]">This may take a while. Vision AI is processing handwritten pages.</p>
+                  </div>
 
-                        return (
-                          <div key={pageNum} className="flex flex-col gap-2 w-full items-center">
-                            {/* Rotation Bar */}
-                            <div className="flex items-center justify-between w-full text-[11px] font-mono text-[#888077] bg-[#F8F7F4] px-3 py-1 rounded-lg border border-[#E8E5DF]">
-                              <span>Page {pageNum}</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleRotatePage(pageNum, 'ccw')}
-                                  className="hover:text-[#1E1E1E] flex items-center gap-1"
-                                >
-                                  <RotateCcw className="w-3 h-3" /> Rotate Left
-                                </button>
-                                <span>|</span>
-                                <button
-                                  onClick={() => handleRotatePage(pageNum, 'cw')}
-                                  className="hover:text-[#1E1E1E] flex items-center gap-1"
-                                >
-                                  <RotateCw className="w-3 h-3" /> Rotate Right
-                                </button>
-                              </div>
-                            </div>
+                  <div className="w-full bg-[#F1EFEA] rounded-full h-2 overflow-hidden max-w-md">
+                    <div 
+                      className="bg-[#FF5722] h-full transition-all duration-500 rounded-full" 
+                      style={{ width: `${(processStep / 3) * 100}%` }}
+                    ></div>
+                  </div>
 
-                            {/* Paper Image Container */}
-                            <div 
-                              style={{ width: `${canvasZoom}%` }}
-                              className="relative rounded-xl overflow-hidden border border-[#E8E5DF] bg-white flex items-center justify-center transition-all duration-200 shadow-md"
-                            >
-                              {pageImg ? (
-                                <img
-                                  src={pageImg}
-                                  alt={`Answer Sheet Page ${pageNum}`}
-                                  style={{
-                                    transform: `rotate(${rotDeg}deg)`,
-                                    transition: 'transform 0.3s ease',
-                                  }}
-                                  className="w-full h-auto object-contain block"
-                                />
-                              ) : (
-                                <div className="w-full min-h-[550px] bg-[#FAF8F5] relative p-8 flex flex-col gap-6 border border-[#E8E5DF]">
-                                  <div className="text-xs font-mono text-[#888077]">
-                                    [Handwritten Answer Sheet — Page {pageNum}]
+                  <span className="text-xs font-mono font-semibold text-[#554F49] bg-[#F8F7F4] px-4 py-2 rounded-lg border border-[#E8E5DF]">
+                    {statusText}
+                  </span>
+                </div>
+              )}
+
+              {/* WORKSPACE RESULTS VIEW */}
+              {mappingData && !isProcessing && (
+                <div className="flex flex-col gap-6">
+                  {/* ASSESSMENT GRADING SUMMARY BANNER */}
+                  <div className="p-6 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E5DF] pb-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs uppercase tracking-widest font-bold text-[#888077]">Grading Overview</span>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-[#1E1E1E]">
+                          Score: {mappingData.summary.total_score || 0} / {mappingData.summary.max_possible_score || 15} Marks
+                          <span className="ml-3 text-xs font-bold px-3 py-1 rounded-full bg-[#1E1E1E] text-[#FFFFFF]">
+                            {mappingData.summary.score_percentage || 0}% Total
+                          </span>
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs font-mono font-bold">
+                        <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {mappingData.summary.correct_count || 0} Correct
+                        </span>
+                        <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                          {mappingData.summary.partial_count || 0} Partial
+                        </span>
+                        <span className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                          {mappingData.summary.incorrect_count || 0} Incorrect
+                        </span>
+                      </div>
+                    </div>
+
+                    {mappingData.summary.overall_feedback && (
+                      <p className="text-xs sm:text-sm text-[#554F49] font-mono leading-relaxed bg-[#F8F7F4] p-3.5 rounded-xl border border-[#E8E5DF]">
+                        <span className="font-bold text-[#1E1E1E]">AI Executive Summary: </span>
+                        {mappingData.summary.overall_feedback}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* MOBILE VIEW SWITCHER TABS */}
+                  <div className="flex md:hidden items-center justify-center p-1 rounded-xl bg-[#E8E5DF]">
+                    <button
+                      onClick={() => setMobileTab('questions')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mobileTab === 'questions' ? 'bg-[#FFFFFF] text-[#1E1E1E] shadow-sm' : 'text-[#777067]'}`}
+                    >
+                      Questions ({mappingData.mapped_questions.length})
+                    </button>
+                    <button
+                      onClick={() => setMobileTab('canvas')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mobileTab === 'canvas' ? 'bg-[#FFFFFF] text-[#1E1E1E] shadow-sm' : 'text-[#777067]'}`}
+                    >
+                      Answer Sheet Canvas
+                    </button>
+                  </div>
+
+                  {/* SPLIT SCREEN WORKSPACE */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    {/* LEFT COLUMN: EXTRACTED QUESTIONS (FROM QUESTION PAPER) */}
+                    <div className={`md:col-span-5 flex flex-col gap-4 ${mobileTab === 'canvas' ? 'hidden md:flex' : 'flex'}`}>
+                      {/* Panel Header */}
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#554F49]">
+                          Extracted Questions (from question paper)
+                        </span>
+                        <button
+                          onClick={toggleExpandAll}
+                          className="text-xs font-semibold text-[#FF5722] hover:underline"
+                        >
+                          Expand / Collapse All
+                        </button>
+                      </div>
+
+                      {/* Filter Pills */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                        <button
+                          onClick={() => setActiveTab('all')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                            activeTab === 'all' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                          }`}
+                        >
+                          All ({mappingData.mapped_questions.length})
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('matched')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                            activeTab === 'matched' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                          }`}
+                        >
+                          Matched ({mappingData.summary.matched_questions})
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('unanswered')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                            activeTab === 'unanswered' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                          }`}
+                        >
+                          Unanswered ({mappingData.summary.unanswered_questions})
+                        </button>
+                      </div>
+
+                      {/* Question Cards List */}
+                      <div className="flex flex-col gap-3 max-h-[720px] overflow-y-auto pr-1">
+                        {mappingData.mapped_questions
+                          .filter(q => {
+                            if (activeTab === 'matched') return q.status === 'matched';
+                            if (activeTab === 'unanswered') return q.status === 'unanswered';
+                            return true;
+                          })
+                          .map((q, idx) => {
+                            const isSelected = selectedQuestionNumber === q.question_number;
+                            const isExpanded = expandedQuestions[q.question_number] ?? true;
+
+                            return (
+                              <div
+                                key={q.question_number}
+                                onClick={() => handleSelectQuestion(q.question_number)}
+                                className={`p-4 rounded-xl border transition cursor-pointer flex flex-col gap-3 ${
+                                  isSelected
+                                    ? 'bg-[#FFFFFF] border-[#1E1E1E] ring-2 ring-[#1E1E1E]/20 shadow-md'
+                                    : 'bg-[#FFFFFF] border-[#E8E5DF] hover:border-[#B3ADA1]'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-7 h-7 rounded-full bg-[#1E1E1E] text-[#FFFFFF] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                      {idx + 1}
+                                    </div>
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="text-[11px] font-mono text-[#888077] font-semibold">Q{q.question_number}</span>
+                                      <h4 className="text-xs sm:text-sm font-semibold text-[#1E1E1E] leading-snug">{q.question_text}</h4>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {q.status === 'matched' ? (
+                                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        {q.marks_awarded || 0} / {q.max_marks || 5}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#F8F7F4] text-[#888077] border border-[#E8E5DF]">
+                                        0 / {q.max_marks || 5}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleQuestionExpand(q.question_number);
+                                      }}
+                                      className="text-[#888077] hover:text-[#1E1E1E]"
+                                    >
+                                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    </button>
                                   </div>
                                 </div>
-                              )}
 
-                              {/* BOUNDING BOX OVERLAYS (CLEAN GREEN OUTLINE BOXES - MATCHES FIGMA DESIGN) */}
-                              {mappingData.mapped_questions.map((q) =>
-                                q.answers.map((ans, ansIdx) =>
-                                  ans.pages
-                                    .filter((p) => p.page_number === pageNum)
-                                    .map((p, pIdx) => {
-                                      const isSelected = selectedQuestionNumber === q.question_number;
-                                      const elementId = `bbox-target-${q.question_number}`;
-                                      const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
+                                {isExpanded && q.status === 'matched' && (
+                                  <div className="pt-2 border-t border-[#E8E5DF] flex flex-col gap-2 text-xs">
+                                    <div className="flex items-center justify-between text-[11px] text-[#888077] font-mono">
+                                      <span>{q.match_percentage || 90}% Match</span>
+                                      <span>Answer Pages: {Array.from(new Set(q.answers.flatMap(a => a.pages.map(p => p.page_number)))).join(', ')}</span>
+                                    </div>
 
-                                      return (
-                                        <div
-                                          id={elementId}
-                                          key={`${q.question_number}-${ansIdx}-${pIdx}`}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedQuestionNumber(q.question_number);
-                                          }}
-                                          onMouseEnter={() => setActiveHoveredBoxId(`${q.question_number}`)}
-                                          onMouseLeave={() => setActiveHoveredBoxId(null)}
-                                          style={boxStyle}
-                                          className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
-                                            isSelected
-                                              ? 'border-2 border-[#22C55E] bg-transparent z-30 ring-2 ring-[#22C55E]/30 shadow-md'
-                                              : activeHoveredBoxId === q.question_number
-                                              ? 'border-2 border-[#22C55E] bg-transparent z-20'
-                                              : 'border-2 border-[#22C55E] bg-transparent hover:border-[#16A34A] z-10'
-                                          }`}
-                                        >
-                                          <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold shadow-sm ${
-                                            isSelected ? 'bg-[#22C55E] text-[#FFFFFF]' : 'bg-[#22C55E] text-[#FFFFFF]'
-                                          }`}>
-                                            Q{q.question_number}
-                                          </span>
-                                        </div>
-                                      );
-                                    })
-                                )
-                              )}
-
-                              {/* UNMATCHED BOUNDING BOXES */}
-                              {mappingData.unmatched_answers.map((ans, ansIdx) =>
-                                ans.pages
-                                  .filter((p) => p.page_number === pageNum)
-                                  .map((p, pIdx) => {
-                                    const targetId = ans.matched_question_number || `unmatched-${ansIdx}`;
-                                    const isSelected = selectedQuestionNumber === targetId;
-                                    const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
-
-                                    return (
-                                      <div
-                                        id={`bbox-target-${targetId}`}
-                                        key={`unmatched-bbox-${ansIdx}-${pIdx}`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedQuestionNumber(targetId);
-                                        }}
-                                        style={boxStyle}
-                                        className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
-                                          isSelected
-                                            ? 'border-2 border-[#EAB308] bg-transparent z-30'
-                                            : 'border-2 border-dashed border-[#EAB308] bg-transparent z-10'
-                                        }`}
-                                      >
-                                        <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAB308] text-white">
-                                          Unmatched
-                                        </span>
+                                    {q.ai_feedback && (
+                                      <div className="p-3 rounded-lg bg-[#FFF1EC] border border-[#FF5722]/20 text-[#1E1E1E] flex flex-col gap-1">
+                                        <span className="font-bold text-[11px] text-[#FF5722]">AI Feedback</span>
+                                        <p className="text-xs leading-relaxed text-[#554F49]">{q.ai_feedback}</p>
                                       </div>
-                                    );
-                                  })
-                              )}
-                            </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: ANSWER SHEET CANVAS */}
+                    <div 
+                      ref={viewerContainerRef}
+                      className={`md:col-span-7 bg-[#FFFFFF] border border-[#E8E5DF] rounded-2xl p-4 flex flex-col gap-4 max-h-[800px] overflow-hidden relative shadow-sm ${mobileTab === 'questions' ? 'hidden md:flex' : 'flex'}`}
+                    >
+                      {/* Canvas Toolbar Header */}
+                      <div className="flex items-center justify-between text-xs font-semibold text-[#554F49] pb-3 border-b border-[#E8E5DF]">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#1E1E1E]">Answer Sheet</span>
+                          <span className="text-[11px] text-[#888077]">({answerSheetPageImages.length || 1} Pages Total)</span>
+                        </div>
+
+                        {/* Canvas Controls */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1 bg-[#F8F7F4] p-1 rounded-lg border border-[#E8E5DF]">
+                            <button
+                              onClick={() => setCanvasZoom(z => Math.max(50, z - 15))}
+                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
+                              title="Zoom Out"
+                            >
+                              <ZoomOut className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="px-2 text-[11px] font-mono font-bold text-[#1E1E1E]">{canvasZoom}%</span>
+                            <button
+                              onClick={() => setCanvasZoom(z => Math.min(200, z + 15))}
+                              className="p-1 hover:bg-[#FFFFFF] rounded text-[#1E1E1E]"
+                              title="Zoom In"
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                        );
-                      })}
+
+                          <div className="flex items-center gap-1.5 bg-[#F8F7F4] px-2 py-1 rounded-lg border border-[#E8E5DF] text-[11px] font-mono font-bold">
+                            <button
+                              disabled={currentCanvasPage <= 1}
+                              onClick={() => setCurrentCanvasPage(p => Math.max(1, p - 1))}
+                              className="disabled:opacity-30 hover:text-[#FF5722]"
+                            >
+                              &lt;
+                            </button>
+                            <span>Page {currentCanvasPage} of {getPageNumbers().length || 1}</span>
+                            <button
+                              disabled={currentCanvasPage >= getPageNumbers().length}
+                              onClick={() => setCurrentCanvasPage(p => Math.min(getPageNumbers().length, p + 1))}
+                              className="disabled:opacity-30 hover:text-[#FF5722]"
+                            >
+                              &gt;
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Canvas View Area */}
+                      <div className="flex-1 overflow-y-auto relative flex flex-col items-center gap-6 p-2">
+                        {getPageNumbers()
+                          .filter(pNum => pNum === currentCanvasPage || getPageNumbers().length <= 3)
+                          .map((pageNum) => {
+                            const pageImg = answerSheetPageImages[pageNum - 1];
+                            const rotDeg = pageRotations[pageNum] || 0;
+
+                            return (
+                              <div key={pageNum} className="flex flex-col gap-2 w-full items-center">
+                                <div className="flex items-center justify-between w-full text-[11px] font-mono text-[#888077] bg-[#F8F7F4] px-3 py-1 rounded-lg border border-[#E8E5DF]">
+                                  <span>Page {pageNum}</span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleRotatePage(pageNum, 'ccw')}
+                                      className="hover:text-[#1E1E1E] flex items-center gap-1"
+                                    >
+                                      <RotateCcw className="w-3 h-3" /> Rotate Left
+                                    </button>
+                                    <span>|</span>
+                                    <button
+                                      onClick={() => handleRotatePage(pageNum, 'cw')}
+                                      className="hover:text-[#1E1E1E] flex items-center gap-1"
+                                    >
+                                      <RotateCw className="w-3 h-3" /> Rotate Right
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div 
+                                  style={{ width: `${canvasZoom}%` }}
+                                  className="relative rounded-xl overflow-hidden border border-[#E8E5DF] bg-white flex items-center justify-center transition-all duration-200 shadow-md"
+                                >
+                                  {pageImg ? (
+                                    <img
+                                      src={pageImg}
+                                      alt={`Answer Sheet Page ${pageNum}`}
+                                      style={{
+                                        transform: `rotate(${rotDeg}deg)`,
+                                        transition: 'transform 0.3s ease',
+                                      }}
+                                      className="w-full h-auto object-contain block"
+                                    />
+                                  ) : (
+                                    <div className="w-full min-h-[550px] bg-[#FAF8F5] relative p-8 flex flex-col gap-6 border border-[#E8E5DF]">
+                                      <div className="text-xs font-mono text-[#888077]">
+                                        [Handwritten Answer Sheet — Page {pageNum}]
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* BOUNDING BOX OVERLAYS (CLEAN GREEN OUTLINE BOXES) */}
+                                  {mappingData.mapped_questions.map((q) =>
+                                    q.answers.map((ans, ansIdx) =>
+                                      ans.pages
+                                        .filter((p) => p.page_number === pageNum)
+                                        .map((p, pIdx) => {
+                                          const isSelected = selectedQuestionNumber === q.question_number;
+                                          const elementId = `bbox-target-${q.question_number}`;
+                                          const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
+
+                                          return (
+                                            <div
+                                              id={elementId}
+                                              key={`${q.question_number}-${ansIdx}-${pIdx}`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedQuestionNumber(q.question_number);
+                                              }}
+                                              onMouseEnter={() => setActiveHoveredBoxId(`${q.question_number}`)}
+                                              onMouseLeave={() => setActiveHoveredBoxId(null)}
+                                              style={boxStyle}
+                                              className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
+                                                isSelected
+                                                  ? 'border-2 border-[#22C55E] bg-transparent z-30 ring-2 ring-[#22C55E]/30 shadow-md'
+                                                  : activeHoveredBoxId === q.question_number
+                                                  ? 'border-2 border-[#22C55E] bg-transparent z-20'
+                                                  : 'border-2 border-[#22C55E] bg-transparent hover:border-[#16A34A] z-10'
+                                              }`}
+                                            >
+                                              <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#22C55E] text-[#FFFFFF] shadow-sm">
+                                                Q{q.question_number}
+                                              </span>
+                                            </div>
+                                          );
+                                        })
+                                    )
+                                  )}
+
+                                  {/* UNMATCHED BOUNDING BOXES */}
+                                  {mappingData.unmatched_answers.map((ans, ansIdx) =>
+                                    ans.pages
+                                      .filter((p) => p.page_number === pageNum)
+                                      .map((p, pIdx) => {
+                                        const targetId = ans.matched_question_number || `unmatched-${ansIdx}`;
+                                        const isSelected = selectedQuestionNumber === targetId;
+                                        const boxStyle = getRotatedBboxStyle(p.bbox, rotDeg);
+
+                                        return (
+                                          <div
+                                            id={`bbox-target-${targetId}`}
+                                            key={`unmatched-bbox-${ansIdx}-${pIdx}`}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedQuestionNumber(targetId);
+                                            }}
+                                            style={boxStyle}
+                                            className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
+                                              isSelected
+                                                ? 'border-2 border-[#EAB308] bg-transparent z-30'
+                                                : 'border-2 border-dashed border-[#EAB308] bg-transparent z-10'
+                                            }`}
+                                          >
+                                            <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAB308] text-white">
+                                              Unmatched
+                                            </span>
+                                          </div>
+                                        );
+                                      })
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </main>
       </div>
+
+      {/* INTERACTIVE MODAL 1: AI TEACHER'S TOOLKIT */}
+      {showToolkitModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-xl w-full p-6 shadow-2xl flex flex-col gap-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center text-[#FF5722]">
+                  <Sparkles className="w-5 h-5 animate-sparkle" />
+                </div>
+                <div className="flex flex-col">
+                  <h3 className="text-lg font-bold text-[#1E1E1E]">AI Teacher's Toolkit</h3>
+                  <span className="text-xs text-[#888077]">Generative AI tools for educators</span>
+                </div>
+              </div>
+              <button onClick={() => setShowToolkitModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49] hover:bg-[#E8E5DF]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] hover:border-[#FF5722] cursor-pointer transition flex flex-col gap-2 group">
+                <FileText className="w-6 h-6 text-[#FF5722]" />
+                <span className="text-sm font-bold text-[#1E1E1E] group-hover:text-[#FF5722]">Question Paper Generator</span>
+                <span className="text-xs text-[#777067]">Generate custom test papers based on Bloom's taxonomy.</span>
+              </div>
+              <div className="p-4 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] hover:border-[#FF5722] cursor-pointer transition flex flex-col gap-2 group">
+                <CheckSquare className="w-6 h-6 text-[#FF5722]" />
+                <span className="text-sm font-bold text-[#1E1E1E] group-hover:text-[#FF5722]">Grading Rubric Creator</span>
+                <span className="text-xs text-[#777067]">Create point-wise marking rubrics for accurate scoring.</span>
+              </div>
+              <div className="p-4 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] hover:border-[#FF5722] cursor-pointer transition flex flex-col gap-2 group">
+                <BookOpen className="w-6 h-6 text-[#FF5722]" />
+                <span className="text-sm font-bold text-[#1E1E1E] group-hover:text-[#FF5722]">Model Answer Generator</span>
+                <span className="text-xs text-[#777067]">Generate ideal student reference answer keys automatically.</span>
+              </div>
+              <div className="p-4 rounded-2xl border border-[#E8E5DF] bg-[#F8F7F4] hover:border-[#FF5722] cursor-pointer transition flex flex-col gap-2 group">
+                <Zap className="w-6 h-6 text-[#FF5722]" />
+                <span className="text-sm font-bold text-[#1E1E1E] group-hover:text-[#FF5722]">Remedial Learning Insights</span>
+                <span className="text-xs text-[#777067]">Identify weak concepts & auto-generate practice tasks.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MODAL 2: HELP & QUICK START */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-3">
+              <h3 className="text-lg font-bold text-[#1E1E1E] flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#FF5722]" /> VedaAI Quick Start Guide
+              </h3>
+              <button onClick={() => setShowHelpModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 text-xs sm:text-sm text-[#554F49]">
+              <div className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                <span className="font-bold text-[#1E1E1E]">Step 1: Upload Documents</span>
+                <p className="mt-1 text-xs text-[#777067]">Select printed Question Paper (PDF) and handwritten Student Answer Sheet (PDF/Scanned Images).</p>
+              </div>
+              <div className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                <span className="font-bold text-[#1E1E1E]">Step 2: Vision OCR Extraction</span>
+                <p className="mt-1 text-xs text-[#777067]">Groq Vision LLM transcribes handwritten text across all pages and fits tight bounding box outlines.</p>
+              </div>
+              <div className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                <span className="font-bold text-[#1E1E1E]">Step 3: Whole Answer Mapping & Grading</span>
+                <p className="mt-1 text-xs text-[#777067]">Whole multi-page student responses are evaluated against question prompts to produce Match %, Marks, and AI Feedback.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MODAL 3: SPARKLE AI ASSISTANT CHAT */}
+      {showAiChatModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-lg w-full h-[520px] p-5 shadow-2xl flex flex-col justify-between">
+            <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#FF5722] animate-sparkle" />
+                <span className="font-bold text-[#1E1E1E] text-base">VedaAI Assistant</span>
+              </div>
+              <button onClick={() => setShowAiChatModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto my-3 flex flex-col gap-3 p-1">
+              {aiChatMessages.map((msg, idx) => (
+                <div key={idx} className={`p-3 rounded-2xl text-xs sm:text-sm max-w-[85%] ${msg.role === 'user' ? 'bg-[#1E1E1E] text-white self-end' : 'bg-[#F8F7F4] border border-[#E8E5DF] text-[#1E1E1E] self-start'}`}>
+                  {msg.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-[#E8E5DF]">
+              <input
+                type="text"
+                placeholder="Ask VedaAI anything about grading or assessment..."
+                value={aiChatInput}
+                onChange={e => setAiChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSendAiChatMessage()}
+                className="flex-1 px-4 py-2.5 rounded-full border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm focus:outline-none focus:border-[#FF5722]"
+              />
+              <button 
+                onClick={handleSendAiChatMessage}
+                className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818]"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MODAL 4: SCHOOL DETAILS & ROSTER */}
+      {showSchoolModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E5DF] rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white font-bold text-sm flex items-center justify-center">
+                  DPS
+                </div>
+                <div className="flex flex-col">
+                  <h3 className="font-bold text-[#1E1E1E] text-base">Delhi Public School</h3>
+                  <span className="text-xs text-[#888077]">Bokaro Steel City Campus</span>
+                </div>
+              </div>
+              <button onClick={() => setShowSchoolModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 text-xs text-[#554F49]">
+              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
+                <span>Active License:</span> <span className="font-bold text-emerald-700">Enterprise AI Plan</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
+                <span>Registered Students:</span> <span className="font-bold text-[#1E1E1E]">1,240 Students</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#F8F7F4] flex justify-between">
+                <span>Active Class Sections:</span> <span className="font-bold text-[#1E1E1E]">Class 10-A, 10-B</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
