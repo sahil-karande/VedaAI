@@ -99,44 +99,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Candidate vision models
+    // Valid Groq vision candidate models
     const candidateModels = [
       'llama-3.2-11b-vision-preview',
       'llama-3.2-90b-vision-preview',
-      'llama-3.2-11b-vision-instruct',
     ];
 
     const allExtractedBlocks: any[] = [];
     let selectedModel = 'llama-3.2-11b-vision-preview';
 
     if (pageImages.length > 0) {
-      // Process page images page by page with Vision LLM
-      for (let pIdx = 0; pIdx < pageImages.length; pIdx++) {
+      // Parallel vision extraction across all pages concurrently
+      const pagePromises = pageImages.map(async (imgStr, pIdx) => {
         const pageNum = pIdx + 1;
-        const imgStr = pageImages[pIdx];
         const imageUrl = imgStr.startsWith('data:')
           ? imgStr
-          : `data:${mimeType || 'image/png'};base64,${imgStr}`;
+          : `data:${mimeType || 'image/jpeg'};base64,${imgStr}`;
 
-        let pageSuccess = false;
         for (const modelName of candidateModels) {
           try {
-            const messages = [
-              { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `This is Page ${pageNum} of the student's handwritten answer sheet. Extract all student handwritten answer blocks on Page ${pageNum} with exact matched_question_number (e.g., 1(a), 2(a), 2(b), 3(a)), complete transcribed text, and accurate 0-1000 scale bounding box coords [ymin, xmin, ymax, xmax]. Set page_number to ${pageNum} for all extracted blocks.`,
-                  },
-                  { type: 'image_url', image_url: { url: imageUrl } },
-                ],
-              },
-            ];
-
             const completion = await groq.chat.completions.create({
-              messages: messages as any,
+              messages: [
+                { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: `Page ${pageNum} of handwritten answer sheet. Extract all student handwritten answer blocks on Page ${pageNum} with exact matched_question_number (e.g., 1(a), 2(a), 2(b), 3(a)), complete transcribed text, and accurate 0-1000 scale bounding box coords [ymin, xmin, ymax, xmax].`,
+                    },
+                    { type: 'image_url', image_url: { url: imageUrl } },
+                  ],
+                },
+              ] as any,
               model: modelName,
               temperature: 0.1,
               response_format: { type: 'json_object' },
@@ -159,26 +154,21 @@ export async function POST(req: NextRequest) {
               ? parsedPage
               : [];
 
-            rawBlocks.forEach((block: any) => {
-              if (!block.pages || !Array.isArray(block.pages) || block.pages.length === 0) {
-                block.pages = [{ page_number: pageNum, bbox: block.bbox || [100, 100, 500, 900] }];
-              } else {
-                block.pages = block.pages.map((p: any) => ({
-                  page_number: p.page_number || pageNum,
-                  bbox: p.bbox || [100, 100, 500, 900],
-                }));
-              }
-              allExtractedBlocks.push(block);
-            });
-
-            selectedModel = modelName;
-            pageSuccess = true;
-            break; // Next page
+            return rawBlocks.map((block: any) => ({
+              ...block,
+              pages: [{ page_number: pageNum, bbox: block.bbox || (block.pages && block.pages[0]?.bbox) || [100, 100, 500, 900] }],
+            }));
           } catch (err: any) {
             console.warn(`Vision model ${modelName} error on page ${pageNum}:`, err.message || err);
           }
         }
-      }
+        return [];
+      });
+
+      const pageResults = await Promise.all(pagePromises);
+      pageResults.forEach((blocks) => {
+        allExtractedBlocks.push(...blocks);
+      });
     } else {
       // Fallback text parsing
       for (const modelName of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {

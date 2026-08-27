@@ -12,7 +12,7 @@ if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
  */
 export async function renderPdfToPageImages(
   file: File,
-  maxDimension = 1600
+  maxDimension = 1200
 ): Promise<string[]> {
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -24,9 +24,9 @@ export async function renderPdfToPageImages(
     const page = await pdf.getPage(pageNum);
     const initialViewport = page.getViewport({ scale: 1.0 });
 
-    // Calculate scale factor to reach desired max dimension for optimal OCR quality
+    // Calculate scale factor to reach desired max dimension for optimal OCR speed & quality
     const maxSide = Math.max(initialViewport.width, initialViewport.height);
-    const scale = maxSide > 0 ? maxDimension / maxSide : 1.5;
+    const scale = maxSide > 0 ? maxDimension / maxSide : 1.2;
     const viewport = page.getViewport({ scale });
 
     const canvas = document.createElement('canvas');
@@ -36,7 +36,7 @@ export async function renderPdfToPageImages(
     const ctx = canvas.getContext('2d');
     if (!ctx) continue;
 
-    // Fill white background for transparent PDF elements
+    // Fill white background for clear contrast
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -45,7 +45,8 @@ export async function renderPdfToPageImages(
       viewport: viewport,
     }).promise;
 
-    const dataUrl = canvas.toDataURL('image/png', 0.92);
+    // Output JPEG for ~10x smaller size and 10x faster network payload transfer
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     pageImages.push(dataUrl);
   }
 
@@ -97,7 +98,7 @@ export async function rotateImageDataUrl(
       ctx.drawImage(img, 0, 0);
       ctx.restore();
 
-      resolve(canvas.toDataURL('image/png', 0.92));
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
 
     img.onerror = (err) => reject(err);
