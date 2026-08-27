@@ -1454,6 +1454,43 @@ export default function Home() {
                             );
                           })}
                       </div>
+
+                      {/* CANVAS FOOTER PAGE NAVIGATION BUTTONS */}
+                      <div className="w-full flex items-center justify-between pt-3 pb-1 px-1 border-t border-[#E8E5DF] shrink-0 bg-white">
+                        <button
+                          disabled={currentCanvasPage <= 1}
+                          onClick={() => {
+                            const prevPage = Math.max(1, currentCanvasPage - 1);
+                            setCurrentCanvasPage(prevPage);
+                            if (viewerContainerRef.current) {
+                              viewerContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#E8E5DF] bg-[#F8F7F4] hover:bg-[#1E1E1E] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-[#1E1E1E] transition shadow-sm cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Previous Page</span>
+                        </button>
+
+                        <span className="text-xs font-mono font-bold text-[#554F49] bg-[#F8F7F4] px-3 py-1.5 rounded-lg border border-[#E8E5DF]">
+                          Page {currentCanvasPage} of {getPageNumbers().length || 1}
+                        </span>
+
+                        <button
+                          disabled={currentCanvasPage >= getPageNumbers().length}
+                          onClick={() => {
+                            const nextPage = Math.min(getPageNumbers().length, currentCanvasPage + 1);
+                            setCurrentCanvasPage(nextPage);
+                            if (viewerContainerRef.current) {
+                              viewerContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
+                          }}
+                          className="flex items-center gap-2 px-4.5 py-2 rounded-xl bg-[#1E1E1E] text-white hover:bg-[#FF5722] disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold transition shadow-md cursor-pointer"
+                        >
+                          <span>Next Page</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
