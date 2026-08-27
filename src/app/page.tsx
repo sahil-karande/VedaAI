@@ -1137,15 +1137,17 @@ export default function Home() {
 
         {/* MAIN BODY AREA */}
         <main className="flex-1 overflow-y-auto p-6 md:p-10 max-w-7xl mx-auto w-full flex flex-col gap-8">
-          {/* HOME TAB: WITH CHANGABLE ACADEMIC YEAR & LIVE DATA CHARTS */}
+          {/* HOME TAB: REAL-TIME LIVE DATA CHARTS & METRICS */}
           {activeNav === 'home' && (() => {
-            // Live dynamic statistics computed from live assessments in library & current active mapping
+            // Filter saved library items by active selected academic year
             const filteredLibrary = libraryItems.filter(item => item.academicYear === academicYear);
             const liveAssessmentsPool = [...filteredLibrary];
+            
+            // Include currently active session mapping if it matches or is active
             if (mappingData) {
               liveAssessmentsPool.push({
-                id: 'current-live',
-                title: 'Current Active Assessment',
+                id: 'current-live-session',
+                title: 'Current Active Workspace Assessment',
                 dateSaved: 'Today',
                 academicYear,
                 scorePercentage: mappingData.summary.score_percentage || 0,
@@ -1156,51 +1158,45 @@ export default function Home() {
               });
             }
 
-            const liveTotalMappedCount = 20 + liveAssessmentsPool.length;
+            const liveTotalMappedCount = liveAssessmentsPool.length;
             const liveSavedCount = filteredLibrary.length;
 
-            // Compute Live Average Class Score %
+            // Calculate exact live average class score % across all live assessments
             const liveAvgScorePct = liveAssessmentsPool.length > 0
               ? Math.round((liveAssessmentsPool.reduce((acc, item) => acc + item.scorePercentage, 0) / liveAssessmentsPool.length) * 10) / 10
-              : 88.5;
+              : 0;
 
-            // Collect all mapped questions across live pool
+            // Aggregate all extracted mapped questions across live pool
             const allLiveQuestions: MappedQuestion[] = liveAssessmentsPool.flatMap(item => item.mappingData.mapped_questions || []);
+            const hasLiveData = allLiveQuestions.length > 0;
 
-            // Compute Live Grade Distribution
-            let liveGradeAPlusCount = 14;
-            let liveGradeACount = 16;
-            let liveGradeBCount = 6;
-            let liveGradeCCount = 2;
+            // Compute exact real-time grade distribution counts & percentages
+            const liveGradeAPlusCount = hasLiveData ? allLiveQuestions.filter(q => (q.match_percentage || 0) >= 90 || q.evaluation === 'correct').length : 0;
+            const liveGradeACount = hasLiveData ? allLiveQuestions.filter(q => (q.match_percentage || 0) >= 75 && (q.match_percentage || 0) < 90).length : 0;
+            const liveGradeBCount = hasLiveData ? allLiveQuestions.filter(q => (q.match_percentage || 0) >= 50 && (q.match_percentage || 0) < 75).length : 0;
+            const liveGradeCCount = hasLiveData ? allLiveQuestions.filter(q => (q.match_percentage || 0) < 50 || q.evaluation === 'incorrect').length : 0;
 
-            if (allLiveQuestions.length > 0) {
-              liveGradeAPlusCount = allLiveQuestions.filter(q => (q.match_percentage || 0) >= 90 || q.evaluation === 'correct').length;
-              liveGradeACount = allLiveQuestions.filter(q => (q.match_percentage || 0) >= 75 && (q.match_percentage || 0) < 90).length;
-              liveGradeBCount = allLiveQuestions.filter(q => (q.match_percentage || 0) >= 50 && (q.match_percentage || 0) < 75).length;
-              liveGradeCCount = allLiveQuestions.filter(q => (q.match_percentage || 0) < 50 || q.evaluation === 'incorrect').length;
-            }
+            const liveTotalStudents = allLiveQuestions.length || 1;
+            const liveAPlusPct = hasLiveData ? Math.round((liveGradeAPlusCount / liveTotalStudents) * 100) : 0;
+            const liveAPct = hasLiveData ? Math.round((liveGradeACount / liveTotalStudents) * 100) : 0;
+            const liveBPct = hasLiveData ? Math.round((liveGradeBCount / liveTotalStudents) * 100) : 0;
+            const liveCPct = hasLiveData ? Math.round((liveGradeCCount / liveTotalStudents) * 100) : 0;
 
-            const liveTotalStudents = liveGradeAPlusCount + liveGradeACount + liveGradeBCount + liveGradeCCount || 38;
-            const liveAPlusPct = Math.round((liveGradeAPlusCount / liveTotalStudents) * 100);
-            const liveAPct = Math.round((liveGradeACount / liveTotalStudents) * 100);
-            const liveBPct = Math.round((liveGradeBCount / liveTotalStudents) * 100);
-            const liveCPct = Math.round((liveGradeCCount / liveTotalStudents) * 100);
-
-            // Compute Live Topic Mastery %
-            const getTopicMastery = (keywords: string[], defaultVal: number) => {
-              if (allLiveQuestions.length === 0) return defaultVal;
+            // Compute exact real-time topic mastery % from actual question text & scores
+            const getTopicMastery = (keywords: string[]) => {
+              if (!hasLiveData) return 0;
               const matchingQ = allLiveQuestions.filter(q => 
                 keywords.some(kw => q.question_text.toLowerCase().includes(kw) || (q.complete_raw_text && q.complete_raw_text.toLowerCase().includes(kw)))
               );
-              if (matchingQ.length === 0) return defaultVal;
-              const avg = matchingQ.reduce((acc, q) => acc + (q.match_percentage || 80), 0) / matchingQ.length;
+              if (matchingQ.length === 0) return 0;
+              const avg = matchingQ.reduce((acc, q) => acc + (q.match_percentage || 0), 0) / matchingQ.length;
               return Math.round(avg);
             };
 
-            const liveTcpMastery = getTopicMastery(['tcp', 'osi', 'layer'], 92);
-            const liveHubMastery = getTopicMastery(['hub', 'switch', 'router'], 84);
-            const liveFourierMastery = getTopicMastery(['fourier', 'signal', 'series'], 71);
-            const liveIsdnMastery = getTopicMastery(['isdn', 'digital', 'broadband'], 88);
+            const liveTcpMastery = getTopicMastery(['tcp', 'osi', 'layer']);
+            const liveHubMastery = getTopicMastery(['hub', 'switch', 'router']);
+            const liveFourierMastery = getTopicMastery(['fourier', 'signal', 'series']);
+            const liveIsdnMastery = getTopicMastery(['isdn', 'digital', 'broadband']);
 
             return (
               <div className="flex flex-col gap-8 max-w-5xl mx-auto w-full">
@@ -1236,12 +1232,14 @@ export default function Home() {
                     <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                       <span className="text-xs text-[#888077] font-semibold uppercase">Total Assessments Mapped</span>
                       <span className="text-3xl font-extrabold text-[#1E1E1E] mt-1">{liveTotalMappedCount}</span>
-                      <span className="text-[11px] text-[#888077] mt-1">{academicYear} Batch</span>
+                      <span className="text-[11px] text-[#888077] mt-1">{academicYear} Real-Time Pool</span>
                     </div>
                     <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                       <span className="text-xs text-[#888077] font-semibold uppercase">Average Class Score</span>
                       <span className="text-3xl font-extrabold text-emerald-600 mt-1">{liveAvgScorePct}%</span>
-                      <span className="text-[11px] text-emerald-700 font-semibold mt-1">Live Calculated Data</span>
+                      <span className="text-[11px] text-emerald-700 font-semibold mt-1">
+                        {hasLiveData ? 'Real-Time Live Calculation' : 'No Data Yet'}
+                      </span>
                     </div>
                     <div className="p-4 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] flex flex-col">
                       <span className="text-xs text-[#888077] font-semibold uppercase">Saved in Library</span>
@@ -1253,63 +1251,132 @@ export default function Home() {
 
                 {/* VISUALIZATION & LIVE CHARTS SECTION */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Chart 1: Grade Distribution Breakdown */}
+                  {/* Chart 1: Visual SVG Donut/Pie Chart for Grade Distribution */}
                   <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-bold text-[#1E1E1E] flex items-center gap-2">
                         <PieChart className="w-5 h-5 text-[#FF5722]" /> Grade Distribution Breakdown
                       </h3>
-                      <span className="text-xs font-bold text-[#FF5722]">Live Data ({academicYear})</span>
-                    </div>
-
-                    <div className="flex flex-col gap-3.5 mt-2">
-                      {/* Grade A+ */}
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Grade A+ (90% - 100%)</span>
-                          <span className="text-emerald-600">{liveGradeAPlusCount} Questions / Students ({liveAPlusPct}%)</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${liveAPlusPct}%` }}></div>
-                        </div>
-                      </div>
-
-                      {/* Grade A */}
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Grade A (75% - 89%)</span>
-                          <span className="text-blue-600">{liveGradeACount} Questions / Students ({liveAPct}%)</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${liveAPct}%` }}></div>
-                        </div>
-                      </div>
-
-                      {/* Grade B */}
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Grade B (50% - 74%)</span>
-                          <span className="text-amber-600">{liveGradeBCount} Questions / Students ({liveBPct}%)</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${liveBPct}%` }}></div>
-                        </div>
-                      </div>
-
-                      {/* Grade C */}
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Grade C (&lt; 50%)</span>
-                          <span className="text-rose-600">{liveGradeCCount} Questions / Students ({liveCPct}%)</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${liveCPct}%` }}></div>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#FF5722]">Live Data ({academicYear})</span>
                       </div>
                     </div>
+
+                    {!hasLiveData ? (
+                      <div className="p-8 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] text-center flex flex-col items-center gap-2 my-2">
+                        <PieChart className="w-8 h-8 text-[#B3ADA1]" />
+                        <span className="font-bold text-xs text-[#1E1E1E]">No Live Assessment Data for {academicYear}</span>
+                        <p className="text-[11px] text-[#888077]">Grade an exam sheet in the Exams tab or switch to Academic Year 2025-2026 to see live real-time charts.</p>
+                      </div>
+                    ) : (() => {
+                      // SVG Donut chart math calculation
+                      const circ = 2 * Math.PI * 45; // ~282.74
+                      const segAPlus = (liveAPlusPct / 100) * circ;
+                      const segA = (liveAPct / 100) * circ;
+                      const segB = (liveBPct / 100) * circ;
+                      const segC = (liveCPct / 100) * circ;
+
+                      const offAPlus = 0;
+                      const offA = -segAPlus;
+                      const offB = -(segAPlus + segA);
+                      const offC = -(segAPlus + segA + segB);
+
+                      return (
+                        <div className="flex flex-col sm:flex-row items-center gap-6 mt-2">
+                          {/* SVG Donut Chart Container */}
+                          <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
+                            <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 120 120">
+                              {/* Background Track Circle */}
+                              <circle cx="60" cy="60" r="45" fill="transparent" stroke="#F1EFEA" strokeWidth="14" />
+
+                              {/* Grade C Segment */}
+                              {liveCPct > 0 && (
+                                <circle
+                                  cx="60" cy="60" r="45" fill="transparent"
+                                  stroke="#F43F5E" strokeWidth="14"
+                                  strokeDasharray={`${segC} ${circ - segC}`}
+                                  strokeDashoffset={offC}
+                                  className="transition-all duration-700 ease-out"
+                                />
+                              )}
+
+                              {/* Grade B Segment */}
+                              {liveBPct > 0 && (
+                                <circle
+                                  cx="60" cy="60" r="45" fill="transparent"
+                                  stroke="#F59E0B" strokeWidth="14"
+                                  strokeDasharray={`${segB} ${circ - segB}`}
+                                  strokeDashoffset={offB}
+                                  className="transition-all duration-700 ease-out"
+                                />
+                              )}
+
+                              {/* Grade A Segment */}
+                              {liveAPct > 0 && (
+                                <circle
+                                  cx="60" cy="60" r="45" fill="transparent"
+                                  stroke="#3B82F6" strokeWidth="14"
+                                  strokeDasharray={`${segA} ${circ - segA}`}
+                                  strokeDashoffset={offA}
+                                  className="transition-all duration-700 ease-out"
+                                />
+                              )}
+
+                              {/* Grade A+ Segment */}
+                              {liveAPlusPct > 0 && (
+                                <circle
+                                  cx="60" cy="60" r="45" fill="transparent"
+                                  stroke="#10B981" strokeWidth="14"
+                                  strokeDasharray={`${segAPlus} ${circ - segAPlus}`}
+                                  strokeDashoffset={offAPlus}
+                                  className="transition-all duration-700 ease-out"
+                                />
+                              )}
+                            </svg>
+
+                            {/* Center Donut Label */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                              <span className="text-xl font-extrabold text-[#1E1E1E]">{liveAvgScorePct}%</span>
+                              <span className="text-[10px] font-semibold text-[#888077]">Avg Match</span>
+                            </div>
+                          </div>
+
+                          {/* Interactive Color Legend List */}
+                          <div className="flex flex-col gap-2.5 w-full">
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                              <div className="flex items-center gap-2 text-xs font-bold text-[#1E1E1E]">
+                                <span className="w-3 h-3 rounded-full bg-[#10B981]"></span> Grade A+ (90-100%)
+                              </div>
+                              <span className="text-xs font-extrabold text-[#10B981]">{liveGradeAPlusCount} Qs ({liveAPlusPct}%)</span>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                              <div className="flex items-center gap-2 text-xs font-bold text-[#1E1E1E]">
+                                <span className="w-3 h-3 rounded-full bg-[#3B82F6]"></span> Grade A (75-89%)
+                              </div>
+                              <span className="text-xs font-extrabold text-[#3B82F6]">{liveGradeACount} Qs ({liveAPct}%)</span>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                              <div className="flex items-center gap-2 text-xs font-bold text-[#1E1E1E]">
+                                <span className="w-3 h-3 rounded-full bg-[#F59E0B]"></span> Grade B (50-74%)
+                              </div>
+                              <span className="text-xs font-extrabold text-[#F59E0B]">{liveGradeBCount} Qs ({liveBPct}%)</span>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+                              <div className="flex items-center gap-2 text-xs font-bold text-[#1E1E1E]">
+                                <span className="w-3 h-3 rounded-full bg-[#F43F5E]"></span> Grade C (&lt; 50%)
+                              </div>
+                              <span className="text-xs font-extrabold text-[#F43F5E]">{liveGradeCCount} Qs ({liveCPct}%)</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {/* Chart 2: Subject Topic Mastery */}
+                  {/* Chart 2: Visual SVG Vertical Column Bar Chart for Subject Topic Mastery */}
                   <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-bold text-[#1E1E1E] flex items-center gap-2">
@@ -1318,47 +1385,91 @@ export default function Home() {
                       <span className="text-xs font-bold text-[#FF5722]">Live Data ({academicYear})</span>
                     </div>
 
-                    <div className="flex flex-col gap-3.5 mt-2">
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>TCP/IP & OSI Model Layering</span>
-                          <span className="text-[#FF5722]">{liveTcpMastery}% Mastery</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-[#FF5722] h-full rounded-full transition-all duration-500" style={{ width: `${liveTcpMastery}%` }}></div>
-                        </div>
+                    {!hasLiveData ? (
+                      <div className="p-8 rounded-2xl bg-[#F8F7F4] border border-[#E8E5DF] text-center flex flex-col items-center gap-2 my-2">
+                        <BarChart3 className="w-8 h-8 text-[#B3ADA1]" />
+                        <span className="font-bold text-xs text-[#1E1E1E]">No Topic Data for {academicYear}</span>
+                        <p className="text-[11px] text-[#888077]">Grade an exam sheet in the Exams tab or switch to Academic Year 2025-2026 to see live real-time charts.</p>
                       </div>
+                    ) : (
+                      <div className="flex flex-col gap-4 mt-2">
+                        {/* Graphical Vertical Column Bar Chart */}
+                        <div className="relative h-44 w-full bg-[#F9F8F6] rounded-2xl border border-[#E8E5DF] p-4 flex items-end justify-around gap-2 pt-6">
+                          {/* 80% Benchmark Reference Line */}
+                          <div className="absolute left-0 right-0 top-[20%] border-b border-dashed border-[#FF5722]/40 z-10 pointer-events-none flex justify-end pr-2">
+                            <span className="text-[9px] font-bold text-[#FF5722] bg-[#FFF1EC] px-1.5 py-0.5 rounded border border-[#FF5722]/20">80% Target</span>
+                          </div>
 
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Hub vs Switch vs Router</span>
-                          <span className="text-[#FF5722]">{liveHubMastery}% Mastery</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-[#FF5722] h-full rounded-full transition-all duration-500" style={{ width: `${liveHubMastery}%` }}></div>
-                        </div>
-                      </div>
+                          {/* Column 1: TCP/IP */}
+                          <div className="flex flex-col items-center gap-1.5 w-1/4 h-full justify-end group z-20">
+                            <span className="text-[11px] font-extrabold text-[#FF5722] group-hover:scale-110 transition">{liveTcpMastery}%</span>
+                            <div className="w-8 sm:w-11 bg-[#E8E5DF] rounded-t-xl h-full flex items-end overflow-hidden">
+                              <div
+                                className="w-full bg-gradient-to-t from-[#FF5722] to-[#FF7A50] rounded-t-xl transition-all duration-700 group-hover:brightness-110"
+                                style={{ height: `${liveTcpMastery}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#554F49] truncate max-w-[70px] text-center">TCP/IP</span>
+                          </div>
 
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>Fourier Series & Signal Analysis</span>
-                          <span className="text-amber-600">{liveFourierMastery}% Mastery</span>
-                        </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${liveFourierMastery}%` }}></div>
-                        </div>
-                      </div>
+                          {/* Column 2: Hub vs Switch */}
+                          <div className="flex flex-col items-center gap-1.5 w-1/4 h-full justify-end group z-20">
+                            <span className="text-[11px] font-extrabold text-[#FF5722] group-hover:scale-110 transition">{liveHubMastery}%</span>
+                            <div className="w-8 sm:w-11 bg-[#E8E5DF] rounded-t-xl h-full flex items-end overflow-hidden">
+                              <div
+                                className="w-full bg-gradient-to-t from-[#FF5722] to-[#FF9E7D] rounded-t-xl transition-all duration-700 group-hover:brightness-110"
+                                style={{ height: `${liveHubMastery}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#554F49] truncate max-w-[70px] text-center">Hub/Switch</span>
+                          </div>
 
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="flex justify-between font-bold text-[#1E1E1E]">
-                          <span>ISDN Architecture & Services</span>
-                          <span className="text-[#FF5722]">{liveIsdnMastery}% Mastery</span>
+                          {/* Column 3: Fourier Series */}
+                          <div className="flex flex-col items-center gap-1.5 w-1/4 h-full justify-end group z-20">
+                            <span className="text-[11px] font-extrabold text-amber-600 group-hover:scale-110 transition">{liveFourierMastery}%</span>
+                            <div className="w-8 sm:w-11 bg-[#E8E5DF] rounded-t-xl h-full flex items-end overflow-hidden">
+                              <div
+                                className="w-full bg-gradient-to-t from-[#F59E0B] to-[#FBBF24] rounded-t-xl transition-all duration-700 group-hover:brightness-110"
+                                style={{ height: `${liveFourierMastery}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#554F49] truncate max-w-[70px] text-center">Fourier</span>
+                          </div>
+
+                          {/* Column 4: ISDN */}
+                          <div className="flex flex-col items-center gap-1.5 w-1/4 h-full justify-end group z-20">
+                            <span className="text-[11px] font-extrabold text-[#FF5722] group-hover:scale-110 transition">{liveIsdnMastery}%</span>
+                            <div className="w-8 sm:w-11 bg-[#E8E5DF] rounded-t-xl h-full flex items-end overflow-hidden">
+                              <div
+                                className="w-full bg-gradient-to-t from-[#FF5722] to-[#FF7A50] rounded-t-xl transition-all duration-700 group-hover:brightness-110"
+                                style={{ height: `${liveIsdnMastery}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#554F49] truncate max-w-[70px] text-center">ISDN</span>
+                          </div>
                         </div>
-                        <div className="w-full bg-[#F1EFEA] h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-[#FF5722] h-full rounded-full transition-all duration-500" style={{ width: `${liveIsdnMastery}%` }}></div>
+
+                        {/* Bottom Topic Badges Grid */}
+                        <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+                          <div className="p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between text-[#1E1E1E]">
+                            <span className="truncate">TCP/IP Layering</span>
+                            <span className="font-extrabold text-[#FF5722] ml-1">{liveTcpMastery}%</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between text-[#1E1E1E]">
+                            <span className="truncate">Hub vs Switch</span>
+                            <span className="font-extrabold text-[#FF5722] ml-1">{liveHubMastery}%</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between text-[#1E1E1E]">
+                            <span className="truncate">Fourier Series</span>
+                            <span className="font-extrabold text-amber-600 ml-1">{liveFourierMastery}%</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between text-[#1E1E1E]">
+                            <span className="truncate">ISDN Architecture</span>
+                            <span className="font-extrabold text-[#FF5722] ml-1">{liveIsdnMastery}%</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
