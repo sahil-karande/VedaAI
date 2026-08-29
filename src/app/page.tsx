@@ -635,19 +635,59 @@ export default function Home() {
             pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
           },
           {
+            matched_question_number: '१(अ)',
+            raw_text: 'ओएसआई मॉडल (OSI Model): इंटरनेशनल ऑर्गेनाइजेशन फॉर स्टैंडर्डाइजेशन (ISO) द्वारा १९८४ में विकसित। इसमें ७ स्तर होते हैं: एप्लीकेशन, प्रेजेंटेशन, सेशन, ट्रांसपोर्ट, नेटवर्क, डेटा-लिंक, फिजिकल स्तर।',
+            pages: [{ page_number: 3, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'ओएसआई ७-स्तरीय संरचना से तुलना: ओएसआई में सेशन तथा प्रेजेंटेशन स्तर अलग होते हैं, जबकि टीसीपी/आईपी इन्हें एप्लीकेशन स्तर में जोड़ता है।',
+            pages: [{ page_number: 4, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'निष्कर्ष: डेटा एप्लीकेशन स्तर से फिजिकल स्तर तक एन्कैप्सुलेशन द्वारा प्रवाहित होता है और प्राप्तकर्ता होस्ट पर डीकैप्सुलेट होता है।',
+            pages: [{ page_number: 5, bbox: [100, 70, 900, 930] }]
+          },
+          {
             matched_question_number: '२(क)',
             raw_text: 'हब (Hub) लेयर १ पर कार्य करता है और सभी पोर्ट पर डेटा ब्रॉडकास्ट करता है। स्विच (Switch) लेयर २ पर मैक एड्रेस टेबल का उपयोग करके डेटा ट्रांसफर करता है। राउटर (Router) लेयर ३ पर आईपी एड्रेस का उपयोग करके डेटा पैकेट भेजता है।',
-            pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+            pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
+          },
+          {
+            matched_question_number: '२(क)',
+            raw_text: 'हब एक फिजिकल लेयर डिवाइस है। स्विच डेटा लिंक लेयर डिवाइस है जो केवल लक्षित पोर्ट पर फ्रेम भेजता है। राउटर नेटवर्क लेयर डिवाइस है जो सबनेट के बीच पैकेट रूट करता है।',
+            pages: [{ page_number: 7, bbox: [100, 70, 900, 930] }]
           },
           {
             matched_question_number: '२(ख)',
             raw_text: 'फूरियर सीरीज एक गणितीय अवधारणा है जो किसी भी सिग्नल को साइन और कोसाइन तरंगों के योग में विभाजित करती है।',
-            pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+            pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
+          },
+          {
+            matched_question_number: '२(ख)',
+            raw_text: 'सिग्नल विश्लेषण में, किसी भी आवधिक सिग्नल को उसके हार्मोनिक घटकों में विघटित करके उसकी बैंडविड्थ आवश्यकताओं का विश्लेषण किया जा सकता है।',
+            pages: [{ page_number: 9, bbox: [100, 70, 900, 930] }]
           },
           {
             matched_question_number: '३(अ)',
             raw_text: 'आईएसडीएन (ISDN) डिजिटल नेटवर्क सेवा प्रदान करता है। इसमें नैरोबैंड तथा ब्रॉडबैंड आईएसडीएन शामिल हैं। यह डिजिटल संचार में उच्च गति डेटा ट्रांसमिशन प्रदान करता है।',
-            pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+            pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'आईएसडीएन पारंपरिक तांबे की फोन लाइनों पर बीआरआई (बेसिक रेट इंटरफेस) तथा पीआरआई (प्राइमरी रेट इंटरफेस) द्वारा डिजिटल कनेक्टिविटी प्रदान करता है।',
+            pages: [{ page_number: 11, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'बीआरआई (BRI) में २ बी-चैनल (६४ kbps डेटा/वॉइस) और १ डी-चैनल (१६ kbps सिग्नलिंग) होते हैं, जो कुल १४४ kbps बैंडविड्थ प्रदान करते हैं।',
+            pages: [{ page_number: 12, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'पीआरआई (PRI) २३ बी-चैनल + १ डी-चैनल प्रदान करता है, जो एंटरप्राइज दूरसंचार के लिए उच्च गति डिजिटल ट्रांसमिशन समर्थन देता है।',
+            pages: [{ page_number: 13, bbox: [100, 70, 900, 930] }]
           }
         ]
       };
@@ -671,19 +711,59 @@ export default function Home() {
             pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
           },
           {
+            matched_question_number: '१(अ)',
+            raw_text: 'OSI मॉडेल: ॲप्लिकेशन, प्रेझेंटेशन, सेशन, ट्रान्सपोर्ट, नेटवर्क, डेटा-लिंक, फिजिकल लेयर असे ७ स्तर असतात.',
+            pages: [{ page_number: 3, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'OSI ७-स्तरीय रचनेशी तुलना: OSI सेशन आणि प्रेझेंटेशन स्तर वेगळे करते, तर TCP/IP त्यांना ॲप्लिकेशन लेयरमध्ये एकत्र करते.',
+            pages: [{ page_number: 4, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'निष्कर्ष: डेटा ॲप्लिकेशनपासून फिजिकल लेयरपर्यंत एन्कॅप्स्युलेशनद्वारे जातो.',
+            pages: [{ page_number: 5, bbox: [100, 70, 900, 930] }]
+          },
+          {
             matched_question_number: '२(अ)',
             raw_text: 'हब (Hub) पहिल्या स्तरावर काम करतो आणि सर्व उपकरणांना डेटा ब्रॉडकास्ट करतो. स्विच (Switch) दुसऱ्या स्तरावर MAC ॲड्रेस वापरून डेटा पाठवतो. राउटर (Router) तिसऱ्या स्तरावर IP ॲड्रेस वापरतो.',
-            pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+            pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
+          },
+          {
+            matched_question_number: '२(अ)',
+            raw_text: 'हब फिजिकल लेयरवर काम करतो. स्विच डेटा लिंक लेयरवर काम करतो. राउटर नेटवर्क लेयरवर काम करतो.',
+            pages: [{ page_number: 7, bbox: [100, 70, 900, 930] }]
           },
           {
             matched_question_number: '२(ब)',
             raw_text: 'फूरियर सिरीज ही एक गणितीय संकल्पना आहे जी कोणत्याही नियतकालिक सिग्नलला साइन आणि कोसाइन लहरींच्या बेरजेशी जोडते.',
-            pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+            pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
+          },
+          {
+            matched_question_number: '२(ब)',
+            raw_text: 'सिग्नल विश्लेषणात, कोणत्याही सिग्नलला त्याच्या फ्रिक्वेन्सी घटकांमध्ये विभाजित करण्यासाठी याचा वापर होतो.',
+            pages: [{ page_number: 9, bbox: [100, 70, 900, 930] }]
           },
           {
             matched_question_number: '३(अ)',
             raw_text: 'ISDN डिजिटल नेटवर्क सेवा प्रदान करते. हे नॅरोबँड आणि ब्रॉडबँड नेटवर्कला सपोर्ट करते. उच्च वेगाने डिजिटल डेटा पाठवण्यासाठी याचा वापर होतो.',
-            pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+            pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'ISDN डिजिटल कनेक्टिव्हिटी प्रदान करते. BRI आणि PRI द्वारे डेटा ट्रान्समिशन होते.',
+            pages: [{ page_number: 11, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'BRI मध्ये २ B-चॅनेल (६४ kbps) आणि १ D-चॅनेल (१६ kbps) असतात, जे १४४ kbps स्पीड देतात.',
+            pages: [{ page_number: 12, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'PRI मध्ये २३ B-चॅनेल + १ D-चॅनेल असतात, जे उच्च गती नेटवर्किंगसाठी वापरले जातात.',
+            pages: [{ page_number: 13, bbox: [100, 70, 900, 930] }]
           }
         ]
       };
@@ -697,6 +777,7 @@ export default function Home() {
         { question_number: '3(a)', question_text: 'Analyze the architecture and services of ISDN, and explain how they support digital communication and data transmission.', max_marks: 5, order_index: 3 },
       ],
       answer_blocks: [
+        // Q1(a) spans Pages 1 to 5
         {
           matched_question_number: '1(a)',
           raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
@@ -708,19 +789,65 @@ export default function Home() {
           pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
         },
         {
+          matched_question_number: '1(a)',
+          raw_text: 'OSI Model: Open System Interconnection (OSI) model was developed by International Organization for Standardization (ISO) in the year 1984. It generally consists of 7 layers: Application layer, Presentation layer, Session layer, Transport layer, Network layer, Data-Link layer, Physical layer.',
+          pages: [{ page_number: 3, bbox: [100, 70, 900, 930] }]
+        },
+        {
+          matched_question_number: '1(a)',
+          raw_text: 'Comparison with OSI 7-layer architecture: OSI separates Session and Presentation layers, whereas TCP/IP combines them into the Application Layer.',
+          pages: [{ page_number: 4, bbox: [100, 70, 900, 930] }]
+        },
+        {
+          matched_question_number: '1(a)',
+          raw_text: 'Conclusion: Data flows downwards through encapsulation from Application to Physical, and decapsulates at receiving host.',
+          pages: [{ page_number: 5, bbox: [100, 70, 900, 930] }]
+        },
+
+        // Q2(a) starts on Page 6 and spans Pages 6 to 7
+        {
           matched_question_number: '2(a)',
           raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
-          pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+          pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
         },
+        {
+          matched_question_number: '2(a)',
+          raw_text: 'Hub operates at Layer 1 (Physical) and broadcasts to all ports. Switch operates at Layer 2 (Data Link) using MAC table. Router operates at Layer 3 (Network) using IP routing.',
+          pages: [{ page_number: 7, bbox: [100, 70, 900, 930] }]
+        },
+
+        // Q2(b) spans Pages 8 to 9
         {
           matched_question_number: '2(b)',
           raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves representation.',
-          pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+          pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
         },
+        {
+          matched_question_number: '2(b)',
+          raw_text: 'Any periodic signal can be decomposed into a sum of sine and cosine waves at harmonic frequencies to analyze bandwidth requirements.',
+          pages: [{ page_number: 9, bbox: [100, 70, 900, 930] }]
+        },
+
+        // Q3(a) spans Pages 10 to 13
         {
           matched_question_number: '3(a)',
           raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast digital transmission.',
-          pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+          pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
+        },
+        {
+          matched_question_number: '3(a)',
+          raw_text: 'ISDN provides digital connectivity over traditional copper phone lines using BRI (Basic Rate Interface) and PRI (Primary Rate Interface).',
+          pages: [{ page_number: 11, bbox: [100, 70, 900, 930] }]
+        },
+        {
+          matched_question_number: '3(a)',
+          raw_text: 'BRI consists of 2 B-channels (64 kbps data/voice) and 1 D-channel (16 kbps signaling), totaling 144 kbps bandwidth.',
+          pages: [{ page_number: 12, bbox: [100, 70, 900, 930] }]
+        },
+        {
+          matched_question_number: '3(a)',
+          raw_text: 'PRI provides 23 B-channels + 1 D-channel (in US) or 30 B-channels + 1 D-channel (in Europe) for high-speed enterprise telecommunication.',
+          pages: [{ page_number: 13, bbox: [100, 70, 900, 930] }]
         }
       ]
     };
