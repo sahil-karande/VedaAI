@@ -61,15 +61,29 @@ export interface MappingResponse {
 }
 
 /**
- * Normalizes question number string for reliable direct matching.
+ * Normalizes question number string for reliable direct matching across English, Hindi & Marathi scripts.
  */
 function normalizeQuestionKey(raw: string | null | undefined): string {
   if (!raw) return '';
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^q(uestion)?[\s\.\-]*/i, '')
-    .replace(/[\s\.\_\-\(\)]/g, '');
+  let str = raw.trim().toLowerCase();
+
+  // Convert Devanagari numerals (०-९) to ASCII digits (0-9)
+  const devanagariDigits: Record<string, string> = {
+    '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+    '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+  };
+  str = str.replace(/[०-९]/g, (m) => devanagariDigits[m] || m);
+
+  // Convert Devanagari sub-part letters to ASCII equivalents (अ->a, ब->b, क->c, ड->d)
+  const devanagariLetters: Record<string, string> = {
+    'अ': 'a', 'आ': 'a', 'ब': 'b', 'क': 'c', 'ख': 'b', 'ग': 'c', 'घ': 'd', 'ड': 'd', 'इ': 'e'
+  };
+  str = str.replace(/[अआबकखगघडइ]/g, (m) => devanagariLetters[m] || m);
+
+  // Remove common prefixes in Hindi/Marathi/English (e.g., प्रश्न, प्र, क्र, Q, Question)
+  str = str.replace(/^(प्रश्न|प्र|क्र|question|q)[\s\.\-]*/gi, '');
+
+  return str.replace(/[\s\.\_\-\(\)]/g, '');
 }
 
 /**
@@ -87,7 +101,8 @@ async function analyzeWholeAnswerMatchAndGrading(
   questionText: string,
   completeAnswerText: string,
   maxMarks: number,
-  groq: Groq | null
+  groq: Groq | null,
+  paperLanguage: string = 'English'
 ): Promise<{
   match_percentage: number;
   evaluation: 'correct' | 'partially_correct' | 'incorrect';
@@ -95,11 +110,16 @@ async function analyzeWholeAnswerMatchAndGrading(
   ai_feedback: string;
 }> {
   if (!completeAnswerText || completeAnswerText.trim().length === 0) {
+    const defaultNoAnsMsg =
+      paperLanguage === 'Hindi' ? 'छात्र द्वारा कोई उत्तर जमा नहीं किया गया।' :
+      paperLanguage === 'Marathi' ? 'विद्यार्थ्याने कोणतेही उत्तर सबमिट केलेले नाही.' :
+      'No answer submitted by student.';
+
     return {
       match_percentage: 0,
       evaluation: 'incorrect',
       marks_awarded: 0,
-      ai_feedback: 'No answer submitted by student.',
+      ai_feedback: defaultNoAnsMsg,
     };
   }
 
@@ -107,34 +127,30 @@ async function analyzeWholeAnswerMatchAndGrading(
     const candidateTextModels = [
       'llama-3.3-70b-versatile',
       'llama-3.1-8b-instant',
-      'llama3-70b-8192',
-      'llama3-8b-8192',
-      'mixtral-8x7b-32768',
-      'gemma2-9b-it',
     ];
 
-    const prompt = `You are an expert academic examiner and automated grading assistant.
+    const prompt = `You are an expert academic examiner and automated grading assistant for ${paperLanguage} language exam papers.
 Analyze this student's COMPLETE handwritten exam answer against the Question Prompt.
 
-QUESTION PROMPT:
+QUESTION PROMPT (${paperLanguage}):
 "${questionText}"
 [Maximum Marks: ${maxMarks}]
 
-STUDENT COMPLETE TRANSCRIPTION (Across all pages):
+STUDENT COMPLETE TRANSCRIPTION (${paperLanguage}, Across all pages):
 "${completeAnswerText}"
 
 GRADING TASK & CRITICAL MARKING RULE:
 1. Calculate a strict, accurate Match Percentage (integer 50-100) representing how closely the answer addresses the question.
 2. Evaluate status: "correct" (fully accurate), "partially_correct" (partially accurate or missing some points), or "incorrect".
 3. Award Marks out of ${maxMarks}. CRITICAL RULE: Marks MUST be given ONLY as a whole integer or ending in .5 (e.g. 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5). Never use arbitrary decimals like .1, .2, .3, .4, .6, .7, .8, .9.
-4. Provide concise, clear AI feedback (1-2 sentences) explaining strengths and missing concepts.
+4. Provide concise, clear AI feedback (1-2 sentences) in ${paperLanguage} explaining strengths and missing concepts.
 
 STRICT JSON OUTPUT FORMAT:
 {
   "match_percentage": 92,
   "evaluation": "correct",
   "marks_awarded": ${maxMarks >= 5 ? 4.5 : Math.round(maxMarks * 2) / 2},
-  "ai_feedback": "Detailed feedback text..."
+  "ai_feedback": "Detailed feedback in ${paperLanguage}..."
 }`;
 
     for (const modelName of candidateTextModels) {
@@ -156,7 +172,11 @@ STRICT JSON OUTPUT FORMAT:
 
         const rawAwarded = Number(parsed.marks_awarded) || ((match_percentage / 100) * maxMarks);
         const awarded = roundToHalfOrWhole(rawAwarded, maxMarks);
-        const feedback = String(parsed.ai_feedback || 'Answer demonstrates understanding of core concepts.').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+        const fallbackMsg =
+          paperLanguage === 'Hindi' ? 'उत्तर में मुख्य अवधारणाओं की समझ प्रदर्शित होती है।' :
+          paperLanguage === 'Marathi' ? 'उत्तर मुख्य संकल्पनांची समजूत दर्शवते.' :
+          'Answer demonstrates understanding of core concepts.';
+        const feedback = String(parsed.ai_feedback || fallbackMsg).replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
         return {
           match_percentage,
@@ -173,14 +193,20 @@ STRICT JSON OUTPUT FORMAT:
   // Fallback heuristic scoring with whole or .5 mark rounding
   const wordCount = completeAnswerText.split(/\s+/).length;
   let match_percentage = 85;
-  if (wordCount > 60) match_percentage = 94;
-  else if (wordCount > 30) match_percentage = 82;
-  else if (wordCount > 15) match_percentage = 70;
+  if (wordCount > 40) match_percentage = 94;
+  else if (wordCount > 20) match_percentage = 82;
+  else if (wordCount > 10) match_percentage = 70;
 
   const evaluation: 'correct' | 'partially_correct' = match_percentage >= 85 ? 'correct' : 'partially_correct';
   const rawMarks = (match_percentage / 100) * maxMarks;
   const marks_awarded = roundToHalfOrWhole(rawMarks, maxMarks);
-  const ai_feedback = `Student answer covers key concepts mentioned in question prompt. Transcribed ${wordCount} words across answer pages.`;
+
+  let ai_feedback = `Student answer covers key concepts mentioned in question prompt. Transcribed ${wordCount} words across answer pages.`;
+  if (paperLanguage === 'Hindi') {
+    ai_feedback = `छात्र के उत्तर में मुख्य बिंदु शामिल हैं। उत्तर पृष्ठों में कुल ${wordCount} शब्दों का लिप्यंतरण किया गया।`;
+  } else if (paperLanguage === 'Marathi') {
+    ai_feedback = `विद्यार्थ्याच्या उत्तरात मुख्य मुद्द्यांचा समावेश आहे. उत्तर पानांवर एकूण ${wordCount} शब्दांचे लिप्यंतरण केले.`;
+  }
 
   return {
     match_percentage,
@@ -198,6 +224,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const questions: QuestionItem[] = Array.isArray(body.questions) ? body.questions : [];
     const answerBlocks: AnswerBlockItem[] = Array.isArray(body.answer_blocks) ? body.answer_blocks : [];
+    const paperLanguage = body.paperLanguage || body.language || 'English';
 
     // Default max marks fallback mapping for standard paper
     const defaultMarksMap: Record<string, number> = {
@@ -256,7 +283,7 @@ export async function POST(req: NextRequest) {
       const maxMarks = q.max_marks || defaultMarksMap[normKey] || 5;
 
       if (matchedAnsList.length > 0) {
-        const grading = await analyzeWholeAnswerMatchAndGrading(q.question_text, completeRawText, maxMarks, groq);
+        const grading = await analyzeWholeAnswerMatchAndGrading(q.question_text, completeRawText, maxMarks, groq, paperLanguage);
         return {
           question_number: q.question_number,
           question_text: q.question_text,

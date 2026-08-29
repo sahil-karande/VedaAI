@@ -7,7 +7,9 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2, 
-  FileCheck, 
+  FileCheck,
+  Globe,
+  Languages, 
   ArrowRight,
   RefreshCw,
   Image as ImageIcon,
@@ -118,6 +120,7 @@ interface SavedLibraryItem {
   title: string;
   dateSaved: string;
   academicYear: string;
+  paperLanguage?: string;
   scorePercentage: number;
   totalScore: number;
   maxPossibleScore: number;
@@ -337,9 +340,10 @@ export default function Home() {
     if (!mappingData) return;
     const newItem: SavedLibraryItem = {
       id: `lib-${Date.now()}`,
-      title: `Computer Science Assessment (${questionPaper?.name || 'Class 10 Unit Test'})`,
+      title: `${paperLanguage} Assessment (${questionPaper?.name || 'Class 10 Unit Test'})`,
       dateSaved: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       academicYear,
+      paperLanguage,
       scorePercentage: mappingData.summary.score_percentage || 0,
       totalScore: mappingData.summary.total_score || 0,
       maxPossibleScore: mappingData.summary.max_possible_score || 15,
@@ -354,7 +358,7 @@ export default function Home() {
       try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
-    alert('Assessment successfully saved to My Library!');
+    alert(`Assessment (${paperLanguage}) successfully saved to My Library!`);
   };
 
   const handleDeleteLibraryItem = (id: string) => {
@@ -367,9 +371,13 @@ export default function Home() {
 
   const handleLoadLibraryItem = (item: SavedLibraryItem) => {
     setMappingData(item.mappingData);
+    if (item.paperLanguage) {
+      setPaperLanguage(item.paperLanguage as any);
+    }
     const initExpand: Record<string, boolean> = {};
     item.mappingData.mapped_questions.forEach(q => { initExpand[q.question_number] = true; });
     setExpandedQuestions(initExpand);
+
     const firstMatched = item.mappingData.mapped_questions.find(q => q.status === 'matched');
     if (firstMatched) {
       setSelectedQuestionNumber(firstMatched.question_number);
@@ -448,6 +456,7 @@ export default function Home() {
   // File state
   const [questionPaper, setQuestionPaper] = useState<File | null>(null);
   const [answerSheet, setAnswerSheet] = useState<File | null>(null);
+  const [paperLanguage, setPaperLanguage] = useState<'English' | 'Hindi' | 'Marathi'>('English');
 
   // Rendered PDF Page Images state
   const [questionPaperImages, setQuestionPaperImages] = useState<string[]>([]);
@@ -476,8 +485,6 @@ export default function Home() {
   const [selectedQuestionNumber, setSelectedQuestionNumber] = useState<string | null>(null);
   const [activeHoveredBoxId, setActiveHoveredBoxId] = useState<string | null>(null);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
-
-
 
   const handleSelectQuestion = (qNum: string) => {
     setSelectedQuestionNumber(qNum);
@@ -582,6 +589,118 @@ export default function Home() {
     });
   };
 
+  const getMockDataByLanguage = (lang: 'English' | 'Hindi' | 'Marathi') => {
+    if (lang === 'Hindi') {
+      return {
+        questions: [
+          { question_number: '१(अ)', question_text: 'कंप्यूटर नेटवर्क में TCP/IP मॉडल के विभिन्न स्तरों (Layers) की व्याख्या कीजिए तथा OSI मॉडल से इसकी तुलना कीजिए।', max_marks: 5, order_index: 0 },
+          { question_number: '२(क)', question_text: 'कंप्यूटर नेटवर्क में हब (Hub), स्विच (Switch) तथा राउटर (Router) की भूमिकाओं की तुलना कीजिए।', max_marks: 3, order_index: 1 },
+          { question_number: '२(ख)', question_text: 'फूरियर सीरीज (Fourier Series) की अवधारणा और सिग्नल विश्लेषण में इसके महत्व को समझाइए।', max_marks: 2, order_index: 2 },
+          { question_number: '३(अ)', question_text: 'ISDN की संरचना और सेवाओं का विश्लेषण कीजिए तथा डिजिटल संचार में इसका महत्व समझाइए।', max_marks: 5, order_index: 3 },
+        ],
+        answer_blocks: [
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'टीसीपी/आईपी (TCP/IP) मॉडल में मुख्य रूप से ४ लेयर्स होती हैं: एप्लीकेशन लेयर, ट्रांसपोर्ट लेयर, इंटरनेट लेयर, नेटवर्क एक्सेस लेयर। ओएसआई (OSI) मॉडल में ७ लेयर्स होती हैं। एप्लीकेशन लेयर एचटीटीपी और एफटीपी प्रोटोकॉल का प्रबंधन करती है।',
+            pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'ट्रांसपोर्ट लेयर टीसीपी तथा यूडीपी प्रोटोकॉल द्वारा डेटा ट्रांसमिशन का प्रबंधन करती है। इंटरनेट लेयर आईपी राउटर द्वारा पैकेट भेजती है।',
+            pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '२(क)',
+            raw_text: 'हब (Hub) लेयर १ पर कार्य करता है और सभी पोर्ट पर डेटा ब्रॉडकास्ट करता है। स्विच (Switch) लेयर २ पर मैक एड्रेस टेबल का उपयोग करके डेटा ट्रांसफर करता है। राउटर (Router) लेयर ३ पर आईपी एड्रेस का उपयोग करके डेटा पैकेट भेजता है।',
+            pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+          },
+          {
+            matched_question_number: '२(ख)',
+            raw_text: 'फूरियर सीरीज एक गणितीय अवधारणा है जो किसी भी सिग्नल को साइन और कोसाइन तरंगों के योग में विभाजित करती है।',
+            pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'आईएसडीएन (ISDN) डिजिटल नेटवर्क सेवा प्रदान करता है। इसमें नैरोबैंड तथा ब्रॉडबैंड आईएसडीएन शामिल हैं। यह डिजिटल संचार में उच्च गति डेटा ट्रांसमिशन प्रदान करता है।',
+            pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+          }
+        ]
+      };
+    } else if (lang === 'Marathi') {
+      return {
+        questions: [
+          { question_number: '१(अ)', question_text: 'संगणक नेटवर्कमधील TCP/IP मॉडेलच्या विविध स्तरांचे (Layers) स्पष्टीकरण करा आणि OSI मॉडेलशी तुलना करा.', max_marks: 5, order_index: 0 },
+          { question_number: '२(अ)', question_text: 'संगणक नेटवर्कमध्ये हब (Hub), स्विच (Switch) आणि राउटर (Router) यांच्या भूमिकांची तुलना करा.', max_marks: 3, order_index: 1 },
+          { question_number: '२(ब)', question_text: 'फूरियर सिरीज (Fourier Series) ची संकल्पना आणि सिग्नल विश्लेषणातील तिचे महत्त्व स्पष्ट करा.', max_marks: 2, order_index: 2 },
+          { question_number: '३(अ)', question_text: 'ISDN ची रचना आणि सेवांचे विश्लेषण करा आणि डिजिटल संप्रेषणातील त्याचे महत्त्व स्पष्ट करा.', max_marks: 5, order_index: 3 },
+        ],
+        answer_blocks: [
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'TCP/IP मॉडेलमध्ये मुख्यत्वे ४ स्तर असतात: ॲप्लिकेशन लेयर, ट्रान्सपोर्ट लेयर, इंटरनेट लेयर, नेटवर्क ॲक्सेस लेयर. OSI मॉडेलमध्ये ७ स्तर असतात. ॲप्लिकेशन लेयर उच्च-स्तरीय प्रोटोकॉल हाताळते.',
+            pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
+          },
+          {
+            matched_question_number: '१(अ)',
+            raw_text: 'ट्रान्सपोर्ट लेयर TCP किंवा UDP वापरून डेटा ट्रान्समिशन व्यवस्थापित करते. इंटरनेट लेयर IP राउटिंग हाताळते.',
+            pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
+          },
+          {
+            matched_question_number: '२(अ)',
+            raw_text: 'हब (Hub) पहिल्या स्तरावर काम करतो आणि सर्व उपकरणांना डेटा ब्रॉडकास्ट करतो. स्विच (Switch) दुसऱ्या स्तरावर MAC ॲड्रेस वापरून डेटा पाठवतो. राउटर (Router) तिसऱ्या स्तरावर IP ॲड्रेस वापरतो.',
+            pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+          },
+          {
+            matched_question_number: '२(ब)',
+            raw_text: 'फूरियर सिरीज ही एक गणितीय संकल्पना आहे जी कोणत्याही नियतकालिक सिग्नलला साइन आणि कोसाइन लहरींच्या बेरजेशी जोडते.',
+            pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+          },
+          {
+            matched_question_number: '३(अ)',
+            raw_text: 'ISDN डिजिटल नेटवर्क सेवा प्रदान करते. हे नॅरोबँड आणि ब्रॉडबँड नेटवर्कला सपोर्ट करते. उच्च वेगाने डिजिटल डेटा पाठवण्यासाठी याचा वापर होतो.',
+            pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+          }
+        ]
+      };
+    }
+
+    return {
+      questions: [
+        { question_number: '1(a)', question_text: 'Demonstrate how data is transmitted through the layers of the TCP/IP model and compare it with OSI Model', max_marks: 5, order_index: 0 },
+        { question_number: '2(a)', question_text: 'Compare the roles of a hub, switch, and router in a Computer network.', max_marks: 3, order_index: 1 },
+        { question_number: '2(b)', question_text: 'Explain the concept of Fourier Series and its significance in signal analysis.', max_marks: 2, order_index: 2 },
+        { question_number: '3(a)', question_text: 'Analyze the architecture and services of ISDN, and explain how they support digital communication and data transmission.', max_marks: 5, order_index: 3 },
+      ],
+      answer_blocks: [
+        {
+          matched_question_number: '1(a)',
+          raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
+          pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
+        },
+        {
+          matched_question_number: '1(a)',
+          raw_text: 'Application layer is responsible for high-level protocols such as HTTP, FTP, and SMTP. Transport layer manages end-to-end data transmission using TCP or UDP.',
+          pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
+        },
+        {
+          matched_question_number: '2(a)',
+          raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
+          pages: [{ page_number: 3, bbox: [140, 80, 580, 900] }]
+        },
+        {
+          matched_question_number: '2(b)',
+          raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves representation.',
+          pages: [{ page_number: 4, bbox: [110, 80, 520, 900] }]
+        },
+        {
+          matched_question_number: '3(a)',
+          raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast digital transmission.',
+          pages: [{ page_number: 5, bbox: [120, 80, 550, 900] }]
+        }
+      ]
+    };
+  };
+
   const startProcessing = async () => {
     if (!questionPaper || !answerSheet) return;
 
@@ -592,19 +711,20 @@ export default function Home() {
 
     try {
       setProcessStep(1);
-      setStatusText('Extracting question paper structure with Vision LLM...');
+      setStatusText(`Extracting ${paperLanguage} question paper structure with Vision LLM...`);
 
       let qpData: any = {};
       if (questionPaperImages.length > 0) {
         const resQP = await fetch('/api/extract-questions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageImages: questionPaperImages }),
+          body: JSON.stringify({ pageImages: questionPaperImages, paperLanguage }),
         });
         qpData = await resQP.json();
       } else {
         const formDataQP = new FormData();
         formDataQP.append('file', questionPaper);
+        formDataQP.append('paperLanguage', paperLanguage);
         const resQP = await fetch('/api/extract-questions', {
           method: 'POST',
           body: formDataQP,
@@ -612,19 +732,14 @@ export default function Home() {
         qpData = await resQP.json();
       }
 
+      const mockData = getMockDataByLanguage(paperLanguage);
+
       if (!qpData.success || !qpData.questions || qpData.questions.length === 0) {
-        qpData = {
-          questions: [
-            { question_number: '1(a)', question_text: 'Demonstrate how data is transmitted through the layers of the TCP/IP model and compare it with OSI Model', max_marks: 5, order_index: 0 },
-            { question_number: '2(a)', question_text: 'Compare the roles of a hub, switch, and router in a Computer network.', max_marks: 3, order_index: 1 },
-            { question_number: '2(b)', question_text: 'Explain the concept of Fourier Series and its significance in signal analysis.', max_marks: 2, order_index: 2 },
-            { question_number: '3(a)', question_text: 'Analyze the architecture and services of ISDN, and explain how they support digital communication and data transmission.', max_marks: 5, order_index: 3 },
-          ]
-        };
+        qpData = { questions: mockData.questions };
       }
 
       setProcessStep(2);
-      setStatusText('Parsing student handwritten answer pages with Vision AI...');
+      setStatusText(`Parsing handwritten ${paperLanguage} student answer pages with Vision AI...`);
 
       const processedAnswerImages: string[] = [];
       if (answerSheetPageImages.length > 0) {
@@ -645,12 +760,13 @@ export default function Home() {
         const resANS = await fetch('/api/extract-answers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageImages: processedAnswerImages }),
+          body: JSON.stringify({ pageImages: processedAnswerImages, paperLanguage }),
         });
         ansData = await resANS.json();
       } else {
         const formDataANS = new FormData();
         formDataANS.append('file', answerSheet);
+        formDataANS.append('paperLanguage', paperLanguage);
         const resANS = await fetch('/api/extract-answers', {
           method: 'POST',
           body: formDataANS,
@@ -659,86 +775,11 @@ export default function Home() {
       }
 
       if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
-        ansData = {
-          answer_blocks: [
-            // Q1(a) spans Pages 1 to 5
-            {
-              matched_question_number: '1(a)',
-              raw_text: 'TCP/IP is generally called as Transmission Control Protocol / Internet Protocol. It has 4 layers: Application Layer, Transport Layer, Internet Layer, Network Access Layer. OSI Model consists of 7 layers.',
-              pages: [{ page_number: 1, bbox: [120, 80, 520, 920] }]
-            },
-            {
-              matched_question_number: '1(a)',
-              raw_text: 'Application layer is responsible for high-level protocols such as HTTP, FTP, and SMTP. Transport layer manages end-to-end data transmission using TCP or UDP.',
-              pages: [{ page_number: 2, bbox: [100, 70, 900, 930] }]
-            },
-            {
-              matched_question_number: '1(a)',
-              raw_text: 'Internet layer handles IP routing, packets, and address resolution across networks. Network access layer handles physical framing and hardware MAC addresses.',
-              pages: [{ page_number: 3, bbox: [100, 70, 900, 930] }]
-            },
-            {
-              matched_question_number: '1(a)',
-              raw_text: 'Comparison with OSI 7-layer architecture: OSI separates Session and Presentation layers, whereas TCP/IP combines them into the Application Layer.',
-              pages: [{ page_number: 4, bbox: [100, 70, 900, 930] }]
-            },
-            {
-              matched_question_number: '1(a)',
-              raw_text: 'Conclusion: Data flows downwards through encapsulation from Application to Physical, and decapsulates at receiving host.',
-              pages: [{ page_number: 5, bbox: [100, 70, 900, 930] }]
-            },
-
-            // Q2(a) spans Pages 6 to 7
-            {
-              matched_question_number: '2(a)',
-              raw_text: 'Hub is the central station from which multiple signals get connected with single devices. Switch is connected to LAN. Router connects multiple devices at a time.',
-              pages: [{ page_number: 6, bbox: [140, 80, 580, 900] }]
-            },
-            {
-              matched_question_number: '2(a)',
-              raw_text: 'Hub operates at Layer 1 (Physical) and broadcasts to all ports. Switch operates at Layer 2 (Data Link) using MAC table. Router operates at Layer 3 (Network) using IP routing.',
-              pages: [{ page_number: 7, bbox: [100, 70, 900, 930] }]
-            },
-
-            // Q2(b) spans Pages 8 to 9
-            {
-              matched_question_number: '2(b)',
-              raw_text: 'Fourier Series consists of the mathematical concepts generally included in data communication over network. Sin and Cosine waves representation.',
-              pages: [{ page_number: 8, bbox: [110, 80, 520, 900] }]
-            },
-            {
-              matched_question_number: '2(b)',
-              raw_text: 'Any periodic signal can be decomposed into a sum of sine and cosine waves at harmonic frequencies to analyze bandwidth requirements.',
-              pages: [{ page_number: 9, bbox: [100, 70, 900, 930] }]
-            },
-
-            // Q3(a) spans Pages 10 to 13
-            {
-              matched_question_number: '3(a)',
-              raw_text: 'ISDN generally called as integrated services digital network. Supports N-ISDN (narrowband) and B-ISDN (broadband). Fast digital transmission.',
-              pages: [{ page_number: 10, bbox: [120, 80, 550, 900] }]
-            },
-            {
-              matched_question_number: '3(a)',
-              raw_text: 'ISDN provides digital connectivity over traditional copper phone lines using BRI (Basic Rate Interface) and PRI (Primary Rate Interface).',
-              pages: [{ page_number: 11, bbox: [100, 70, 900, 930] }]
-            },
-            {
-              matched_question_number: '3(a)',
-              raw_text: 'BRI consists of 2 B-channels (64 kbps data/voice) and 1 D-channel (16 kbps signaling), totaling 144 kbps bandwidth.',
-              pages: [{ page_number: 12, bbox: [100, 70, 900, 930] }]
-            },
-            {
-              matched_question_number: '3(a)',
-              raw_text: 'PRI provides 23 B-channels + 1 D-channel (in US) or 30 B-channels + 1 D-channel (in Europe) for high-speed enterprise telecommunication.',
-              pages: [{ page_number: 13, bbox: [100, 70, 900, 930] }]
-            }
-          ]
-        };
+        ansData = { answer_blocks: mockData.answer_blocks };
       }
 
       setProcessStep(3);
-      setStatusText('Analyzing whole answers, calculating match scores & AI grading...');
+      setStatusText(`Analyzing whole ${paperLanguage} answers, calculating match scores & AI grading...`);
 
       const resMap = await fetch('/api/map-assessment', {
         method: 'POST',
@@ -746,13 +787,14 @@ export default function Home() {
         body: JSON.stringify({
           questions: qpData.questions,
           answer_blocks: ansData.answer_blocks,
+          paperLanguage,
         }),
       });
 
       const mapResult: MappingData = await resMap.json();
       if (mapResult.success) {
         setMappingData(mapResult);
-        setStatusText('Assessment Mapped & Graded Successfully');
+        setStatusText(`Assessment (${paperLanguage}) Mapped & Graded Successfully`);
         
         const initExpand: Record<string, boolean> = {};
         mapResult.mapped_questions.forEach(q => { initExpand[q.question_number] = true; });
@@ -1651,6 +1693,41 @@ export default function Home() {
                     </p>
                   </div>
 
+                  {/* Paper Language Selector Bar */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#FFF1EC] border border-[#FF5722]/30 flex items-center justify-center text-[#FF5722] shrink-0">
+                        <Globe className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-extrabold text-[#1E1E1E]">Paper Language Option</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30">Active</span>
+                        </div>
+                        <span className="text-xs text-[#888077]">Vision AI & grading prompts will extract Devanagari/English text in your chosen language</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 bg-[#F8F7F4] p-1.5 rounded-xl border border-[#E8E5DF] w-full sm:w-auto justify-center">
+                      {(['English', 'Hindi', 'Marathi'] as const).map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setPaperLanguage(lang)}
+                          className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                            paperLanguage === lang
+                              ? 'bg-[#FF5722] text-white shadow-sm scale-105'
+                              : 'text-[#554F49] hover:bg-[#E8E5DF]'
+                          }`}
+                        >
+                          {lang === 'English' && '🇬🇧 English'}
+                          {lang === 'Hindi' && '🇮🇳 Hindi (हिंदी)'}
+                          {lang === 'Marathi' && '🚩 Marathi (मराठी)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Upload Dropzones */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                     {/* Dropzone 1: Question Paper */}
@@ -1775,7 +1852,12 @@ export default function Home() {
                   <div className="p-6 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-sm flex flex-col gap-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E5DF] pb-4">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs uppercase tracking-widest font-bold text-[#888077]">Grading Overview</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs uppercase tracking-widest font-bold text-[#888077]">Grading Overview</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> {paperLanguage} Paper
+                          </span>
+                        </div>
                         <h3 className="text-2xl sm:text-3xl font-extrabold text-[#1E1E1E]">
                           Score: {mappingData.summary.total_score || 0} / {mappingData.summary.max_possible_score || 15} Marks
                           <span className="ml-3 text-xs font-bold px-3 py-1 rounded-full bg-[#1E1E1E] text-[#FFFFFF]">
@@ -2214,6 +2296,30 @@ export default function Home() {
               <button onClick={() => setShowToolkitModal(false)} className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#554F49] hover:bg-[#E8E5DF]">
                 <X className="w-4 h-4" />
               </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF]">
+              <span className="text-xs font-bold text-[#1E1E1E] flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-[#FF5722]" /> Target Output Language:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {(['English', 'Hindi', 'Marathi'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setPaperLanguage(lang)}
+                    className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
+                      paperLanguage === lang
+                        ? 'bg-[#FF5722] text-white shadow-sm'
+                        : 'bg-white text-[#554F49] border border-[#E8E5DF] hover:bg-[#F0EEE8]'
+                    }`}
+                  >
+                    {lang === 'English' && 'English'}
+                    {lang === 'Hindi' && 'Hindi (हिंदी)'}
+                    {lang === 'Marathi' && 'Marathi (मराठी)'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

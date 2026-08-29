@@ -11,14 +11,24 @@ function getSmartFallbackResponse(
   query: string,
   userProfile: any,
   currentMappingSummary: any,
-  libraryItemsCount: number
+  libraryItemsCount: number,
+  paperLanguage: string = 'English'
 ): string {
   const q = query.toLowerCase().trim();
   const userName = userProfile?.name || 'Educator';
 
+  // Language inquiry or Hindi/Marathi keywords
+  if (q.includes('language') || q.includes('hindi') || q.includes('marathi') || q.includes('हिंदी') || q.includes('मराठी') || q.includes('भाषा')) {
+    return `VedaAI fully supports multi-lingual exam papers in English, Hindi (हिंदी), and Marathi (मराठी):
+
+1. Language Selection: Select your preferred paper language (English, Hindi, Marathi) on the upload screen before mapping.
+2. Devanagari OCR & Transcription: Vision AI transcribes handwritten student responses in Devanagari script for Hindi & Marathi answer sheets.
+3. Multi-Lingual Evaluation & Feedback: Step marking, match percentages, AI feedback, and Bloom's taxonomy rubrics are generated in your chosen paper language.`;
+  }
+
   // 1. Greetings
   if (/^(hi|hello|hey|greetings|howdy|good\s*(morning|afternoon|evening)|how are you)/i.test(q) || q === 'hey' || q === 'hi') {
-    return `Hello ${userName}! I am VedaAI Assistant. I am doing well and ready to assist you with answer paper grading, classroom rubrics, topic mastery analytics, and exporting your assessments. How can I help you today?`;
+    return `Hello ${userName}! I am VedaAI Assistant. I am doing well and ready to assist you with answer paper grading (in English, Hindi, or Marathi), classroom rubrics, topic mastery analytics, and exporting your assessments. How can I help you today?`;
   }
 
   // 2. Deduction / Marks / Step Grading
@@ -30,16 +40,18 @@ function getSmartFallbackResponse(
     q.includes('grade') ||
     q.includes('subtrac') ||
     q.includes('point') ||
-    q.includes('step')
+    q.includes('step') ||
+    q.includes('अंक') ||
+    q.includes('गुण')
   ) {
     return `In VedaAI, mark deduction and automated grading follow standard academic evaluation rules:
 
-1. Rubric & Answer Matching: VedaAI transcribes handwritten responses and compares them against the question's model answer key and target concepts extracted from the printed question paper.
+1. Rubric & Answer Matching: VedaAI transcribes handwritten responses and compares them against the question's model answer key and target concepts extracted from the printed question paper (in English, Hindi, or Marathi).
 2. Step Marking & Increments: Marks are awarded or deducted strictly in whole numbers or 0.5 step increments. For example:
    - 0.5 Marks Deducted: For minor technical omissions, incomplete units, or partial concept coverage.
    - 1.0+ Marks Deducted: For missing key derivation steps, formula errors, or incomplete sub-answers.
    - Full Mark Deduction (0 Awarded): For blank responses, irrelevant answers, or incorrect solutions.
-3. Detailed Criteria Feedback: For every question, VedaAI provides a specific feedback explanation showing where marks were lost and what required concepts were missing.
+3. Detailed Criteria Feedback: For every question, VedaAI provides a specific feedback explanation in the selected paper language showing where marks were lost and what required concepts were missing.
 4. Manual Teacher Overrides: As a teacher, you can click on any question in the mapped assessment view to manually adjust awarded marks or edit feedback.`;
   }
 
@@ -55,10 +67,11 @@ function getSmartFallbackResponse(
   ) {
     return `To upload and map assessments in VedaAI:
 
-1. Upload Question Paper: Upload your printed exam paper (PDF or Image). VedaAI automatically extracts individual questions, sub-parts, and maximum marks.
-2. Upload Student Answer Sheet: Upload handwritten student answer pages. Vision AI transcribes text and locates answer bounding boxes.
-3. Multi-Page Continuation: VedaAI tracks student answers spanning multiple pages (e.g. Q1a extending across Pages 1 to 5, Q2a on Page 6) so full answers are evaluated together.
-4. Run Assessment Mapping: Click 'Map & Grade Assessment' to generate match percentages, score breakdowns, and topic mastery data.`;
+1. Select Paper Language: Choose English, Hindi (हिंदी), or Marathi (मराठी) on the upload screen.
+2. Upload Question Paper: Upload your printed exam paper (PDF or Image). VedaAI automatically extracts individual questions, sub-parts, and maximum marks.
+3. Upload Student Answer Sheet: Upload handwritten student answer pages. Vision AI transcribes text and locates answer bounding boxes.
+4. Multi-Page Continuation: VedaAI tracks student answers spanning multiple pages (e.g. Q1a extending across Pages 1 to 5, Q2a on Page 6) so full answers are evaluated together.
+5. Run Assessment Mapping: Click 'Map & Grade Assessment' to generate match percentages, score breakdowns, and topic mastery data.`;
   }
 
   // 4. Rubrics & Teacher Toolkit
@@ -70,10 +83,10 @@ function getSmartFallbackResponse(
     q.includes('remedial') ||
     q.includes('generator')
   ) {
-    return `The AI Teacher Toolkit provides customized teaching assets:
+    return `The AI Teacher Toolkit provides customized teaching assets in English, Hindi, and Marathi:
 
 1. Marking Rubrics: Build structured multi-criteria rubrics aligned with Bloom's Taxonomy levels (Remembering, Understanding, Applying, Analyzing, Evaluating, Creating).
-2. Model Answer Keys: Instantly generate step-by-step solution keys for uploaded question papers.
+2. Model Answer Keys: Instantly generate step-by-step solution keys for uploaded question papers in your selected language.
 3. Remedial Tasks: Automatically create practice worksheets tailored to student learning gaps identified during grading.`;
   }
 
@@ -113,18 +126,18 @@ function getSmartFallbackResponse(
   // 7. Contextual Fallback for general questions
   return `Hello ${userName}! Regarding "${query}":
 
-VedaAI is designed to streamline assessment workflows for educators. You can:
+VedaAI is designed to streamline assessment workflows for educators across English, Hindi, and Marathi. You can:
 - Map & Grade Answer Sheets: Automatically transcribe handwritten answers and grade them against model criteria.
+- Multi-Lingual Support: Switch paper language between English, Hindi (हिंदी), and Marathi (मराठी).
 - Customize Mark Deductions: Enforce 0.5 or whole integer step-marking rules and view question-level feedback.
 - Generate Teaching Assets: Create Bloom's Taxonomy rubrics and remedial tasks in the AI Teacher Toolkit.
-- Track Topic Mastery: View interactive analytics charts on your dashboard.
 
-Feel free to ask specifically about paper uploading, rubric generation, mark deduction rules, or assessment exports!`;
+Feel free to ask specifically about paper uploading, language selection, rubric generation, mark deduction rules, or assessment exports!`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, userProfile, schoolDetails, academicYear, currentMappingSummary, libraryItemsCount } = await req.json();
+    const { messages, userProfile, schoolDetails, academicYear, currentMappingSummary, libraryItemsCount, paperLanguage = 'English' } = await req.json();
 
     const groqApiKey = process.env.GROQ_API_KEY;
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -139,6 +152,7 @@ CURRENT CONTEXT OF THE USER & PLATFORM:
 - User Name: ${userProfile?.name || 'Educator'} (${userProfile?.role || 'Teacher'})
 - Institution: ${schoolDetails?.schoolName || 'High School'} (${schoolDetails?.campus || 'Main Campus'})
 - Active Academic Year: ${academicYear || '2025-2026'}
+- Active Paper Language: ${paperLanguage}
 - Saved Library Assessments: ${libraryItemsCount || 0} items
 - Current Workspace Exam Sheet Status: ${
       currentMappingSummary
@@ -147,12 +161,13 @@ CURRENT CONTEXT OF THE USER & PLATFORM:
     }
 
 PLATFORM CAPABILITIES YOU SHOULD BE KNOWLEDGEABLE ABOUT:
-1. Automated Assessment Digitization: Upload printed question paper and handwritten student answer sheets to transcribe text, map answers to questions across multiple pages, and draw bounding box overlays.
-2. Multi-Page Continuation: Automatically tracks answers spanning multiple pages (e.g. Q1a spanning Pages 1-5, Q2a starting on Page 6).
-3. Whole Integer & .5 Step Marking: Enforces standard academic grading increments (.5 or whole numbers only).
-4. My Library: Persistent saving, loading, and deletion of past assessments.
-5. Real-Time Home Analytics: Interactive SVG Donut charts for Grade Distribution and Vertical Column charts for Subject Topic Mastery.
-6. AI Teacher Toolkit: Generate question papers, marking rubrics, model answer keys, and remedial learning tasks.
+1. Multi-Lingual Support: Native support for English, Hindi (हिंदी), and Marathi (मराठी) exam papers and handwritten student answer sheets using Devanagari Vision AI OCR.
+2. Automated Assessment Digitization: Upload printed question paper and handwritten student answer sheets to transcribe text, map answers to questions across multiple pages, and draw bounding box overlays.
+3. Multi-Page Continuation: Automatically tracks answers spanning multiple pages (e.g. Q1a spanning Pages 1-5, Q2a starting on Page 6).
+4. Whole Integer & .5 Step Marking: Enforces standard academic grading increments (.5 or whole numbers only).
+5. My Library: Persistent saving, loading, and deletion of past assessments.
+6. Real-Time Home Analytics: Interactive SVG Donut charts for Grade Distribution and Vertical Column charts for Subject Topic Mastery.
+7. AI Teacher Toolkit: Generate question papers, marking rubrics, model answer keys, and remedial learning tasks in English, Hindi, or Marathi.
 
 RULES FOR YOUR RESPONSES:
 - Be warm, professional, articulate, and directly helpful to the user.
@@ -222,13 +237,13 @@ RULES FOR YOUR RESPONSES:
 
     // Strategy 3: Smart Local Intent Engine Fallback (guarantees accurate answer even without active API keys)
     if (!replyText) {
-      replyText = getSmartFallbackResponse(lastUserQuery, userProfile, currentMappingSummary, libraryItemsCount);
+      replyText = getSmartFallbackResponse(lastUserQuery, userProfile, currentMappingSummary, libraryItemsCount, paperLanguage);
     }
 
     return NextResponse.json({ reply: replyText });
   } catch (error: any) {
     console.error('Chat Assistant API Error:', error);
-    const fallback = getSmartFallbackResponse('help', null, null, 0);
+    const fallback = getSmartFallbackResponse('help', null, null, 0, 'English');
     return NextResponse.json({ reply: fallback }, { status: 200 });
   }
 }

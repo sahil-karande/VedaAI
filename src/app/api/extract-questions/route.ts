@@ -2,20 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import pdfParse from 'pdf-parse';
 
-const EXTRACTION_SYSTEM_PROMPT = `You are an expert exam paper parser. Extract every single question from the provided question paper document.
+const getExtractionSystemPrompt = (language: string) => `You are an expert exam paper parser.
+The question paper language is: ${language || 'English'}.
 
 CRITICAL EXTRACTION REQUIREMENTS:
-1. PRESERVE ORIGINAL NUMBERING: Extract question_number strings EXACTLY as printed (e.g., "1(a)", "2(a)", "2(b)", "3(a)"). Do NOT renumber or standardize question numbers.
-2. SUB-PARTS AS SEPARATE ENTRIES: Treat labelled sub-parts (e.g., 1(a), 2(a), 2(b), 3(a)) as separate entries in the output list.
+1. PRESERVE ORIGINAL NUMBERING & SCRIPT: Extract question_number strings EXACTLY as printed (e.g. "1(a)", "2(a)", "१(अ)", "२(क)", "प्रश्न १(अ)"). Do NOT renumber or standardize question numbers. Preserve original Devanagari script for Hindi/Marathi or Latin script for English.
+2. SUB-PARTS AS SEPARATE ENTRIES: Treat labelled sub-parts (e.g., 1(a), 2(a), १(अ), २(क)) as separate entries in the output list.
 3. PRESERVE PRINTED ORDER: Maintain the exact printed sequence using a zero-indexed integer field "order_index" (0, 1, 2, ...).
 4. EXTRACT MARKS: Extract the printed marks/points for each question as a number field "max_marks" (e.g. 5, 3, 2, 5). If unspecified, estimate default 5.
-5. COMPLETE TEXT: Include the full, unabridged text of the question.
+5. COMPLETE TEXT: Include the full, unabridged question text in ${language}.
 6. STRICT JSON OUTPUT: Return ONLY a valid JSON object matching this schema:
 {
   "questions": [
     {
       "question_number": "1(a)",
-      "question_text": "Demonstrate how data is transmitted through the layers of the TCP/IP model...",
+      "question_text": "Question text in ${language}...",
       "max_marks": 5,
       "order_index": 0
     }
@@ -39,12 +40,16 @@ export async function POST(req: NextRequest) {
     let imageBase64 = '';
     let mimeType = '';
     let pageImages: string[] = [];
+    let paperLanguage = 'English';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
       const rawTextInput = formData.get('text') as string | null;
       const pageImagesInput = formData.get('pageImages') as string | null;
+      const langInput = (formData.get('paperLanguage') || formData.get('language')) as string | null;
+
+      if (langInput) paperLanguage = String(langInput);
 
       if (pageImagesInput) {
         try { pageImages = JSON.parse(pageImagesInput); } catch (e) {}
@@ -74,6 +79,7 @@ export async function POST(req: NextRequest) {
       imageBase64 = jsonBody.imageBase64 || '';
       mimeType = jsonBody.mimeType || 'image/jpeg';
       pageImages = Array.isArray(jsonBody.pageImages) ? jsonBody.pageImages : [];
+      paperLanguage = jsonBody.paperLanguage || jsonBody.language || 'English';
     }
 
     if (pageImages.length > 0 && !imageBase64) {
@@ -104,12 +110,14 @@ export async function POST(req: NextRequest) {
     let selectedModel = '';
     let lastErr: any = null;
 
+    const systemPrompt = getExtractionSystemPrompt(paperLanguage);
+
     for (const modelName of candidateModels) {
       try {
         let messages: any[] = [];
         if (imageBase64 || pageImages.length > 0) {
           const contentList: any[] = [
-            { type: 'text', text: 'Extract all questions from this printed question paper image according to instructions.' },
+            { type: 'text', text: `Extract all questions from this printed question paper image in ${paperLanguage} according to instructions.` },
           ];
 
           const imagesToProcess = pageImages.length > 0 ? pageImages.slice(0, 3) : [imageBase64];
@@ -121,15 +129,15 @@ export async function POST(req: NextRequest) {
           });
 
           messages = [
-            { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: contentList },
           ];
         } else {
           messages = [
-            { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+            { role: 'system', content: systemPrompt },
             {
               role: 'user',
-              content: `Extract all questions from the following printed question paper text:\n\n${paperText}`,
+              content: `Extract all questions in ${paperLanguage} from the following printed question paper text:\n\n${paperText}`,
             },
           ];
         }

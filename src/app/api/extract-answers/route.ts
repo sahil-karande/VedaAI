@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import pdfParse from 'pdf-parse';
 
-const ANSWER_EXTRACTION_SYSTEM_PROMPT = `You are an expert AI handwritten answer sheet digitizer and OCR layout parser.
+const getAnswerExtractionSystemPrompt = (language: string) => `You are an expert AI handwritten answer sheet digitizer and OCR layout parser for ${language || 'English'} language handwritten answer sheets.
 
-Your task is to transcribe and extract EVERY SINGLE student answer block from the provided handwritten answer sheet page image.
+Your task is to transcribe and extract EVERY SINGLE student answer block from the provided handwritten answer sheet page image in ${language || 'English'}.
 
 CRITICAL INSTRUCTIONS FOR FULL ANSWER CAPTURE & BOUNDING BOXES:
-1. "matched_question_number": Identify the exact question number written at the top or margin of the answer (e.g., "1(a)", "2(a)", "2(b)", "3(a)"). If a handwritten answer is a continuation of a question from an earlier page without a new label, tag it with the question number it continues.
-2. "raw_text": Transcribe ALL handwritten text for this question on the page Thoroughly and Unabridged from top to bottom. Do NOT omit any paragraphs, bullet points, sub-headings (e.g., i) Hub, ii) Switch, iii) Router), diagrams, or concluding statements.
+1. "matched_question_number": Identify the exact question number written at the top or margin of the answer (e.g., "1(a)", "2(a)", "१(अ)", "२(क)", "प्रश्न १"). Preserve Devanagari numerals/characters for Hindi/Marathi or Latin numerals/letters for English. If a handwritten answer is a continuation of a question from an earlier page without a new label, tag it with the question number it continues.
+2. "raw_text": Transcribe ALL handwritten text for this question on the page Thoroughly and Unabridged in ${language || 'English'} (Devanagari script for Hindi/Marathi, or English text). Do NOT omit any paragraphs, bullet points, sub-headings, diagrams, or concluding statements.
 3. PRECISE BOUNDING BOX ("bbox"): Provide an accurate 4-integer array [ymin, xmin, ymax, xmax] on a 0 to 1000 scale that bounds the COMPLETE handwritten text area for this answer from its starting line down to its ending line on this page:
    - ymin: Topmost line of handwriting for this answer.
    - xmin: Leftmost margin of handwriting.
@@ -21,7 +21,7 @@ Return ONLY a valid JSON object matching this schema:
   "answer_blocks": [
     {
       "matched_question_number": "2(a)",
-      "raw_text": "Full transcribed text covering all sub-points i) Hub, ii) Switch, iii) Router...",
+      "raw_text": "Full transcribed handwritten text in ${language || 'English'}...",
       "pages": [
         {
           "page_number": 1,
@@ -49,12 +49,16 @@ export async function POST(req: NextRequest) {
     let imageBase64 = '';
     let mimeType = '';
     let pageImages: string[] = [];
+    let paperLanguage = 'English';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
       const rawTextInput = formData.get('text') as string | null;
       const pageImagesInput = formData.get('pageImages') as string | null;
+      const langInput = (formData.get('paperLanguage') || formData.get('language')) as string | null;
+
+      if (langInput) paperLanguage = String(langInput);
 
       if (pageImagesInput) {
         try { pageImages = JSON.parse(pageImagesInput); } catch (e) {}
@@ -84,6 +88,7 @@ export async function POST(req: NextRequest) {
       imageBase64 = jsonBody.imageBase64 || '';
       mimeType = jsonBody.mimeType || 'image/jpeg';
       pageImages = Array.isArray(jsonBody.pageImages) ? jsonBody.pageImages : [];
+      paperLanguage = jsonBody.paperLanguage || jsonBody.language || 'English';
     }
 
     if (pageImages.length === 0 && imageBase64) {
@@ -105,6 +110,7 @@ export async function POST(req: NextRequest) {
 
     const allExtractedBlocks: any[] = [];
     let selectedModel = 'llama-3.2-11b-vision-preview';
+    const systemPrompt = getAnswerExtractionSystemPrompt(paperLanguage);
 
     if (pageImages.length > 0) {
       // Parallel vision extraction across all pages concurrently
@@ -118,13 +124,13 @@ export async function POST(req: NextRequest) {
           try {
             const completion = await groq.chat.completions.create({
               messages: [
-                { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
+                { role: 'system', content: systemPrompt },
                 {
                   role: 'user',
                   content: [
                     {
                       type: 'text',
-                      text: `Page ${pageNum} of handwritten answer sheet. Extract all student handwritten answer blocks on Page ${pageNum} with exact matched_question_number (e.g., 1(a), 2(a), 2(b), 3(a)), complete transcribed text, and accurate 0-1000 scale bounding box coords [ymin, xmin, ymax, xmax].`,
+                      text: `Page ${pageNum} of handwritten ${paperLanguage} answer sheet. Extract all student handwritten answer blocks on Page ${pageNum} in ${paperLanguage} with exact matched_question_number (e.g., 1(a), 2(a), १(अ), २(क)), complete transcribed text in ${paperLanguage}, and accurate 0-1000 scale bounding box coords [ymin, xmin, ymax, xmax].`,
                     },
                     { type: 'image_url', image_url: { url: imageUrl } },
                   ],
@@ -206,10 +212,10 @@ export async function POST(req: NextRequest) {
         try {
           const completion = await groq.chat.completions.create({
             messages: [
-              { role: 'system', content: ANSWER_EXTRACTION_SYSTEM_PROMPT },
+              { role: 'system', content: systemPrompt },
               {
                 role: 'user',
-                content: `Extract all student answer blocks from the following text:\n\n${answerText}`,
+                content: `Extract all student answer blocks in ${paperLanguage} from the following text:\n\n${answerText}`,
               },
             ],
             model: modelName,
