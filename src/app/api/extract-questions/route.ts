@@ -111,6 +111,19 @@ export async function POST(req: NextRequest) {
       imageBase64 = pageImages[0];
     }
 
+    if (paperText && paperText.trim().length > 10) {
+      const detectedPdfLang = detectScriptAndLanguage(paperText);
+      if (paperLanguage !== detectedPdfLang) {
+        return NextResponse.json({
+          success: false,
+          languageMismatch: true,
+          detectedLanguage: detectedPdfLang,
+          selectedLanguage: paperLanguage,
+          error: `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage}, Uploaded Document: ${detectedPdfLang})`,
+        }, { status: 400 });
+      }
+    }
+
     if (!paperText && !imageBase64 && pageImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No question paper text, PDF, or image file provided.' },

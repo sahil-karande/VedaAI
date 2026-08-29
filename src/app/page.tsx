@@ -738,48 +738,24 @@ export default function Home() {
       setProcessStep(1);
       setStatusText(`Extracting ${paperLanguage} question paper structure with Vision LLM...`);
 
-      let qpData: any = {};
+      const formDataQP = new FormData();
+      if (questionPaper) formDataQP.append('file', questionPaper);
+      formDataQP.append('paperLanguage', paperLanguage);
       if (questionPaperImages.length > 0) {
-        const resQP = await fetch('/api/extract-questions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageImages: questionPaperImages, paperLanguage }),
-        });
-        qpData = await resQP.json();
-      } else {
-        const formDataQP = new FormData();
-        formDataQP.append('file', questionPaper);
-        formDataQP.append('paperLanguage', paperLanguage);
-        const resQP = await fetch('/api/extract-questions', {
-          method: 'POST',
-          body: formDataQP,
-        });
-        qpData = await resQP.json();
+        formDataQP.append('pageImages', JSON.stringify(questionPaperImages));
       }
 
-      if (qpData.languageMismatch || (qpData.error && qpData.error.includes('Mismatch'))) {
-        setErrorMsg(qpData.error || `Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded question paper is written in a different language.`);
+      const resQP = await fetch('/api/extract-questions', {
+        method: 'POST',
+        body: formDataQP,
+      });
+      let qpData: any = await resQP.json();
+
+      if (qpData.languageMismatch || (qpData.error && qpData.error.toLowerCase().includes('match'))) {
+        setErrorMsg(qpData.error || `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage})`);
         setIsProcessing(false);
         return;
       }
-
-      const mockData = getMockDataByLanguage(paperLanguage);
-
-      if (!qpData.success || !qpData.questions || qpData.questions.length === 0) {
-        qpData = { questions: mockData.questions };
-      }
-
-      // Detect language from extracted/parsed question paper text
-      const qpSampleText = qpData.questions.map((q: any) => `${q.question_number} ${q.question_text}`).join(' ');
-      const detectedQpLang = detectScriptAndLanguage(qpSampleText);
-      if (paperLanguage !== detectedQpLang) {
-        setErrorMsg(`Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded question paper is written in "${detectedQpLang}". Please switch the paper language option to "${detectedQpLang}" or upload a ${paperLanguage} paper.`);
-        setIsProcessing(false);
-        return;
-      }
-
-      setProcessStep(2);
-      setStatusText(`Parsing handwritten ${paperLanguage} student answer pages with Vision AI...`);
 
       const processedAnswerImages: string[] = [];
       if (answerSheetPageImages.length > 0) {
@@ -795,44 +771,46 @@ export default function Home() {
         }
       }
 
-      let ansData: any = {};
+      setProcessStep(2);
+      setStatusText(`Parsing handwritten ${paperLanguage} student answer pages with Vision AI...`);
+
+      const formDataANS = new FormData();
+      if (answerSheet) formDataANS.append('file', answerSheet);
+      formDataANS.append('paperLanguage', paperLanguage);
       if (processedAnswerImages.length > 0) {
-        const resANS = await fetch('/api/extract-answers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageImages: processedAnswerImages, paperLanguage }),
-        });
-        ansData = await resANS.json();
-      } else {
-        const formDataANS = new FormData();
-        formDataANS.append('file', answerSheet);
-        formDataANS.append('paperLanguage', paperLanguage);
-        const resANS = await fetch('/api/extract-answers', {
-          method: 'POST',
-          body: formDataANS,
-        });
-        ansData = await resANS.json();
+        formDataANS.append('pageImages', JSON.stringify(processedAnswerImages));
       }
 
-      if (ansData.languageMismatch || (ansData.error && ansData.error.includes('Mismatch'))) {
-        setErrorMsg(ansData.error || `Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded student answer sheet is written in a different language.`);
+      const resANS = await fetch('/api/extract-answers', {
+        method: 'POST',
+        body: formDataANS,
+      });
+      let ansData: any = await resANS.json();
+
+      if (ansData.languageMismatch || (ansData.error && ansData.error.toLowerCase().includes('match'))) {
+        setErrorMsg(ansData.error || `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage})`);
         setIsProcessing(false);
         return;
       }
 
-      if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
-        ansData = { answer_blocks: mockData.answer_blocks };
+      // Check if uploaded document file is English (Latin script) while user selected Hindi or Marathi
+      const isUploadedFileEnglish = (questionPaper?.name && !/[\u0900-\u097F]/.test(questionPaper.name)) || 
+                                    (answerSheet?.name && !/[\u0900-\u097F]/.test(answerSheet.name));
+
+      if (paperLanguage !== 'English' && isUploadedFileEnglish) {
+        setErrorMsg(`Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage}, Uploaded Document: English)`);
+        setIsProcessing(false);
+        return;
       }
 
-      // Detect language from extracted/parsed student answer text
-      const ansSampleText = ansData.answer_blocks.map((b: any) => b.raw_text).join(' ');
-      if (ansSampleText.trim().length > 0) {
-        const detectedAnsLang = detectScriptAndLanguage(ansSampleText);
-        if (paperLanguage !== detectedAnsLang) {
-          setErrorMsg(`Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded student answer sheet is written in "${detectedAnsLang}". Please switch the paper language option to "${detectedAnsLang}" or upload a ${paperLanguage} answer sheet.`);
-          setIsProcessing(false);
-          return;
-        }
+      const mockData = getMockDataByLanguage(paperLanguage);
+
+      if (!qpData.success || !qpData.questions || qpData.questions.length === 0) {
+        qpData = { questions: mockData.questions };
+      }
+
+      if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
+        ansData = { answer_blocks: mockData.answer_blocks };
       }
 
       setProcessStep(3);

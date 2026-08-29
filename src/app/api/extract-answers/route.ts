@@ -120,6 +120,19 @@ export async function POST(req: NextRequest) {
       pageImages = [imageBase64];
     }
 
+    if (answerText && answerText.trim().length > 10) {
+      const detectedPdfLang = detectScriptAndLanguage(answerText);
+      if (paperLanguage !== detectedPdfLang) {
+        return NextResponse.json({
+          success: false,
+          languageMismatch: true,
+          detectedLanguage: detectedPdfLang,
+          selectedLanguage: paperLanguage,
+          error: `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage}, Uploaded Document: ${detectedPdfLang})`,
+        }, { status: 400 });
+      }
+    }
+
     if (!answerText && pageImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No student answer sheet text, PDF, or image file provided.' },
