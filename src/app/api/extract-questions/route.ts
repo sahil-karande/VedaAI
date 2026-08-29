@@ -28,7 +28,9 @@ function detectScriptAndLanguage(text: string): 'English' | 'Hindi' | 'Marathi' 
 
   const devanagariMatches = text.match(/[\u0900-\u097F]/g) || [];
   const devanagariCount = devanagariMatches.length;
-  const totalLetters = (text.match(/[\p{L}]/gu) || []).length || 1;
+
+  const letterMatches = text.match(/[a-zA-Z\u0900-\u097F]/g) || [];
+  const totalLetters = letterMatches.length || 1;
 
   const devanagariRatio = devanagariCount / totalLetters;
 
@@ -36,11 +38,11 @@ function detectScriptAndLanguage(text: string): 'English' | 'Hindi' | 'Marathi' 
     return 'English';
   }
 
-  const marathiMarkers = /\b(आणि|आहे|आहेत|करा|स्पष्टीकरण|खालील|उत्तर|मधील|च्या|साठी|मध्ये|झाले|केले|नाही|विचार करा|तुलना करा)\b|[ळॲऑ]/i;
-  const hindiMarkers = /\b(और|है|हैं|कीजिए|व्याख्या|का|के|की|में|से|पर|कि|यह|होता|होती|तुलना कीजिए|समझाइए)\b/i;
+  const marathiRegex = /(आणि|आहे|आहेत|करा|स्पष्टीकरण|खालील|उत्तर|मधील|च्या|साठी|मध्ये|झाले|केले|नाही|विचार करा|तुलना करा|ळ|ॲ|ऑ)/gi;
+  const hindiRegex = /(और|है|हैं|कीजिए|व्याख्या|का|के|की|में|से|पर|कि|यह|होता|होती|तुलना कीजिए|समझाइए)/gi;
 
-  const marathiMatches = (text.match(new RegExp(marathiMarkers, 'gi')) || []).length;
-  const hindiMatches = (text.match(new RegExp(hindiMarkers, 'gi')) || []).length;
+  const marathiMatches = (text.match(marathiRegex) || []).length;
+  const hindiMatches = (text.match(hindiRegex) || []).length;
 
   if (marathiMatches > hindiMatches) {
     return 'Marathi';
