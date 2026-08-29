@@ -589,6 +589,31 @@ export default function Home() {
     });
   };
 
+  const detectScriptAndLanguage = (text: string): 'English' | 'Hindi' | 'Marathi' => {
+    if (!text || text.trim().length === 0) return 'English';
+
+    const devanagariMatches = text.match(/[\u0900-\u097F]/g) || [];
+    const devanagariCount = devanagariMatches.length;
+    const totalLetters = (text.match(/[\p{L}]/gu) || []).length || 1;
+
+    const devanagariRatio = devanagariCount / totalLetters;
+
+    if (devanagariRatio < 0.12) {
+      return 'English';
+    }
+
+    const marathiMarkers = /\b(आणि|आहे|आहेत|करा|स्पष्टीकरण|खालील|उत्तर|मधील|च्या|साठी|मध्ये|झाले|केले|नाही|विचार करा|तुलना करा)\b|[ळॲऑ]/i;
+    const hindiMarkers = /\b(और|है|हैं|कीजिए|व्याख्या|का|के|की|में|से|पर|कि|यह|होता|होती|तुलना कीजिए|समझाइए)\b/i;
+
+    const marathiMatches = (text.match(new RegExp(marathiMarkers, 'gi')) || []).length;
+    const hindiMatches = (text.match(new RegExp(hindiMarkers, 'gi')) || []).length;
+
+    if (marathiMatches > hindiMatches) {
+      return 'Marathi';
+    }
+    return 'Hindi';
+  };
+
   const getMockDataByLanguage = (lang: 'English' | 'Hindi' | 'Marathi') => {
     if (lang === 'Hindi') {
       return {
@@ -732,10 +757,25 @@ export default function Home() {
         qpData = await resQP.json();
       }
 
+      if (qpData.languageMismatch || (qpData.error && qpData.error.includes('Mismatch'))) {
+        setErrorMsg(qpData.error || `Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded question paper is written in a different language.`);
+        setIsProcessing(false);
+        return;
+      }
+
       const mockData = getMockDataByLanguage(paperLanguage);
 
       if (!qpData.success || !qpData.questions || qpData.questions.length === 0) {
         qpData = { questions: mockData.questions };
+      }
+
+      // Detect language from extracted/parsed question paper text
+      const qpSampleText = qpData.questions.map((q: any) => `${q.question_number} ${q.question_text}`).join(' ');
+      const detectedQpLang = detectScriptAndLanguage(qpSampleText);
+      if (paperLanguage !== detectedQpLang) {
+        setErrorMsg(`Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded question paper is written in "${detectedQpLang}". Please switch the paper language option to "${detectedQpLang}" or upload a ${paperLanguage} paper.`);
+        setIsProcessing(false);
+        return;
       }
 
       setProcessStep(2);
@@ -774,8 +814,25 @@ export default function Home() {
         ansData = await resANS.json();
       }
 
+      if (ansData.languageMismatch || (ansData.error && ansData.error.includes('Mismatch'))) {
+        setErrorMsg(ansData.error || `Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded student answer sheet is written in a different language.`);
+        setIsProcessing(false);
+        return;
+      }
+
       if (!ansData.success || !ansData.answer_blocks || ansData.answer_blocks.length === 0) {
         ansData = { answer_blocks: mockData.answer_blocks };
+      }
+
+      // Detect language from extracted/parsed student answer text
+      const ansSampleText = ansData.answer_blocks.map((b: any) => b.raw_text).join(' ');
+      if (ansSampleText.trim().length > 0) {
+        const detectedAnsLang = detectScriptAndLanguage(ansSampleText);
+        if (paperLanguage !== detectedAnsLang) {
+          setErrorMsg(`Language Mismatch Error: Selected paper language is "${paperLanguage}", but the uploaded student answer sheet is written in "${detectedAnsLang}". Please switch the paper language option to "${detectedAnsLang}" or upload a ${paperLanguage} answer sheet.`);
+          setIsProcessing(false);
+          return;
+        }
       }
 
       setProcessStep(3);
@@ -1804,6 +1861,34 @@ export default function Home() {
                       </label>
                     </div>
                   </div>
+
+                  {/* Language Mismatch Error Alert Banner */}
+                  {errorMsg && (
+                    <div className="p-5 rounded-2xl bg-red-50 border-2 border-red-200 text-red-700 flex items-start gap-4 shadow-md max-w-3xl mx-auto w-full animate-in fade-in zoom-in-95">
+                      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0 text-red-600">
+                        <AlertTriangle className="w-6 h-6 animate-bounce" />
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-base font-extrabold text-red-900">Paper Language Mismatch Error</h4>
+                          <button 
+                            type="button"
+                            onClick={() => setErrorMsg(null)} 
+                            className="text-red-600 hover:text-red-800 text-xs font-bold underline cursor-pointer px-2 py-0.5 rounded hover:bg-red-100"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                        <p className="text-xs sm:text-sm font-medium text-red-800 leading-relaxed mt-1">
+                          {errorMsg}
+                        </p>
+                        <div className="mt-2.5 p-3 rounded-xl bg-white/80 border border-red-200 flex items-center gap-2">
+                          <span className="text-xs font-extrabold text-red-900">💡 Recommended Action:</span>
+                          <span className="text-xs font-semibold text-red-800">Switch the Paper Language selector bar to match your document's script, then click Start Mapping again.</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Start Mapping Action Button */}
                   <div className="flex flex-col items-center gap-3">

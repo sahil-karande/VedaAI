@@ -23,6 +23,31 @@ CRITICAL EXTRACTION REQUIREMENTS:
   ]
 }`;
 
+function detectScriptAndLanguage(text: string): 'English' | 'Hindi' | 'Marathi' {
+  if (!text || text.trim().length === 0) return 'English';
+
+  const devanagariMatches = text.match(/[\u0900-\u097F]/g) || [];
+  const devanagariCount = devanagariMatches.length;
+  const totalLetters = (text.match(/[\p{L}]/gu) || []).length || 1;
+
+  const devanagariRatio = devanagariCount / totalLetters;
+
+  if (devanagariRatio < 0.12) {
+    return 'English';
+  }
+
+  const marathiMarkers = /\b(आणि|आहे|आहेत|करा|स्पष्टीकरण|खालील|उत्तर|मधील|च्या|साठी|मध्ये|झाले|केले|नाही|विचार करा|तुलना करा)\b|[ळॲऑ]/i;
+  const hindiMarkers = /\b(और|है|हैं|कीजिए|व्याख्या|का|के|की|में|से|पर|कि|यह|होता|होती|तुलना कीजिए|समझाइए)\b/i;
+
+  const marathiMatches = (text.match(new RegExp(marathiMarkers, 'gi')) || []).length;
+  const hindiMatches = (text.match(new RegExp(hindiMarkers, 'gi')) || []).length;
+
+  if (marathiMatches > hindiMatches) {
+    return 'Marathi';
+  }
+  return 'Hindi';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -186,10 +211,24 @@ export async function POST(req: NextRequest) {
       order_index: typeof q.order_index === 'number' ? q.order_index : idx,
     }));
 
+    const sampleTextToDetect = questions.map((q: any) => `${q.question_number} ${q.question_text}`).join(' ') || rawResponseText;
+    const detectedLanguage = detectScriptAndLanguage(sampleTextToDetect);
+
+    if (paperLanguage !== detectedLanguage) {
+      return NextResponse.json({
+        success: false,
+        languageMismatch: true,
+        detectedLanguage,
+        selectedLanguage: paperLanguage,
+        error: `Language Mismatch Detected: Selected paper language is "${paperLanguage}", but the uploaded question paper is written in "${detectedLanguage}". Please switch the paper language option to "${detectedLanguage}" or upload a ${paperLanguage} question paper.`,
+      }, { status: 400 });
+    }
+
     return NextResponse.json({
       success: true,
       questions_count: questions.length,
       questions,
+      detected_language: detectedLanguage,
       model_used: selectedModel,
       timestamp: new Date().toISOString(),
     });

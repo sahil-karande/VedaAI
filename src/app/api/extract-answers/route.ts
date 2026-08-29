@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import pdfParse from 'pdf-parse';
 
+function detectScriptAndLanguage(text: string): 'English' | 'Hindi' | 'Marathi' {
+  if (!text || text.trim().length === 0) return 'English';
+
+  const devanagariMatches = text.match(/[\u0900-\u097F]/g) || [];
+  const devanagariCount = devanagariMatches.length;
+  const totalLetters = (text.match(/[\p{L}]/gu) || []).length || 1;
+
+  const devanagariRatio = devanagariCount / totalLetters;
+
+  if (devanagariRatio < 0.12) {
+    return 'English';
+  }
+
+  const marathiMarkers = /\b(आणि|आहे|आहेत|करा|स्पष्टीकरण|खालील|उत्तर|मधील|च्या|साठी|मध्ये|झाले|केले|नाही|विचार करा|तुलना करा)\b|[ळॲऑ]/i;
+  const hindiMarkers = /\b(और|है|हैं|कीजिए|व्याख्या|का|के|की|में|से|पर|कि|यह|होता|होती|तुलना कीजिए|समझाइए)\b/i;
+
+  const marathiMatches = (text.match(new RegExp(marathiMarkers, 'gi')) || []).length;
+  const hindiMatches = (text.match(new RegExp(hindiMarkers, 'gi')) || []).length;
+
+  if (marathiMatches > hindiMatches) {
+    return 'Marathi';
+  }
+  return 'Hindi';
+}
+
 const getAnswerExtractionSystemPrompt = (language: string) => `You are an expert AI handwritten answer sheet digitizer and OCR layout parser for ${language || 'English'} language handwritten answer sheets.
 
 Your task is to transcribe and extract EVERY SINGLE student answer block from the provided handwritten answer sheet page image in ${language || 'English'}.
@@ -264,10 +289,27 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    const sampleTextToDetect = answer_blocks.map((b: any) => b.raw_text).join(' ');
+    let detectedLanguage = paperLanguage;
+    if (sampleTextToDetect.trim().length > 0) {
+      detectedLanguage = detectScriptAndLanguage(sampleTextToDetect);
+
+      if (paperLanguage !== detectedLanguage) {
+        return NextResponse.json({
+          success: false,
+          languageMismatch: true,
+          detectedLanguage,
+          selectedLanguage: paperLanguage,
+          error: `Language Mismatch Detected: Selected paper language is "${paperLanguage}", but the uploaded student answer sheet is written in "${detectedLanguage}". Please switch the paper language option to "${detectedLanguage}" or upload a ${paperLanguage} answer sheet.`,
+        }, { status: 400 });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       answer_blocks_count: answer_blocks.length,
       answer_blocks,
+      detected_language: detectedLanguage,
       model_used: selectedModel,
       timestamp: new Date().toISOString(),
     });
