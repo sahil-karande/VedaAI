@@ -394,9 +394,14 @@ export default function Home() {
   // Quick AI Assistant Chat Messages & Typing state
   const [aiChatInput, setAiChatInput] = useState<string>('');
   const [isAiAssistantTyping, setIsAiAssistantTyping] = useState<boolean>(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
     { role: 'assistant', text: `Hello ${userProfile.name}! I am VedaAI Assistant. How can I assist you with your assessment grading, classroom rubrics, topic mastery analytics, or platform navigation today?` }
   ]);
+
+  useEffect(() => {
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiChatMessages, isAiAssistantTyping, showAiChatModal]);
 
   const handleSendAiChatMessage = async () => {
     if (!aiChatInput.trim() || isAiAssistantTyping) return;
@@ -426,7 +431,7 @@ export default function Home() {
     } catch (err) {
       setAiChatMessages(prev => [...prev, { 
         role: 'assistant', 
-        text: `Hello ${userProfile.name}! I am doing great and ready to help. You can upload exam papers, manage your library, and generate Bloom's taxonomy rubrics here.` 
+        text: `Hello ${userProfile.name}! I am having trouble reaching the assistant server right now. You can still manage your library, grade papers, and generate Bloom's taxonomy rubrics in the platform.` 
       }]);
     } finally {
       setIsAiAssistantTyping(false);
@@ -2283,7 +2288,7 @@ export default function Home() {
 
             <div className="flex-1 overflow-y-auto my-3 flex flex-col gap-3 p-1">
               {aiChatMessages.map((msg, idx) => (
-                <div key={idx} className={`p-3 rounded-2xl text-xs sm:text-sm max-w-[85%] ${msg.role === 'user' ? 'bg-[#1E1E1E] text-white self-end' : 'bg-[#F8F7F4] border border-[#E8E5DF] text-[#1E1E1E] self-start'}`}>
+                <div key={idx} className={`p-3 rounded-2xl text-xs sm:text-sm max-w-[85%] whitespace-pre-line ${msg.role === 'user' ? 'bg-[#1E1E1E] text-white self-end' : 'bg-[#F8F7F4] border border-[#E8E5DF] text-[#1E1E1E] self-start'}`}>
                   {msg.text}
                 </div>
               ))}
@@ -2293,6 +2298,7 @@ export default function Home() {
                   <span>VedaAI Assistant is thinking...</span>
                 </div>
               )}
+              <div ref={chatMessagesEndRef} />
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-[#E8E5DF]">

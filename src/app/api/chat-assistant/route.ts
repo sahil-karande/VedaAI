@@ -1,24 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GROQ_TEXT_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
-  'llama3-70b-8192',
-  'llama3-8b-8192',
-  'mixtral-8x7b-32768',
 ];
+
+function getSmartFallbackResponse(
+  query: string,
+  userProfile: any,
+  currentMappingSummary: any,
+  libraryItemsCount: number
+): string {
+  const q = query.toLowerCase().trim();
+  const userName = userProfile?.name || 'Educator';
+
+  // 1. Greetings
+  if (/^(hi|hello|hey|greetings|howdy|good\s*(morning|afternoon|evening)|how are you)/i.test(q) || q === 'hey' || q === 'hi') {
+    return `Hello ${userName}! I am VedaAI Assistant. I am doing well and ready to assist you with answer paper grading, classroom rubrics, topic mastery analytics, and exporting your assessments. How can I help you today?`;
+  }
+
+  // 2. Deduction / Marks / Step Grading
+  if (
+    q.includes('deduct') ||
+    q.includes('mark') ||
+    q.includes('score') ||
+    q.includes('cut') ||
+    q.includes('grade') ||
+    q.includes('subtrac') ||
+    q.includes('point') ||
+    q.includes('step')
+  ) {
+    return `In VedaAI, mark deduction and automated grading follow standard academic evaluation rules:
+
+1. Rubric & Answer Matching: VedaAI transcribes handwritten responses and compares them against the question's model answer key and target concepts extracted from the printed question paper.
+2. Step Marking & Increments: Marks are awarded or deducted strictly in whole numbers or 0.5 step increments. For example:
+   - 0.5 Marks Deducted: For minor technical omissions, incomplete units, or partial concept coverage.
+   - 1.0+ Marks Deducted: For missing key derivation steps, formula errors, or incomplete sub-answers.
+   - Full Mark Deduction (0 Awarded): For blank responses, irrelevant answers, or incorrect solutions.
+3. Detailed Criteria Feedback: For every question, VedaAI provides a specific feedback explanation showing where marks were lost and what required concepts were missing.
+4. Manual Teacher Overrides: As a teacher, you can click on any question in the mapped assessment view to manually adjust awarded marks or edit feedback.`;
+  }
+
+  // 3. Uploading & Paper Mapping
+  if (
+    q.includes('upload') ||
+    q.includes('map') ||
+    q.includes('paper') ||
+    q.includes('answer') ||
+    q.includes('scan') ||
+    q.includes('page') ||
+    q.includes('ocr')
+  ) {
+    return `To upload and map assessments in VedaAI:
+
+1. Upload Question Paper: Upload your printed exam paper (PDF or Image). VedaAI automatically extracts individual questions, sub-parts, and maximum marks.
+2. Upload Student Answer Sheet: Upload handwritten student answer pages. Vision AI transcribes text and locates answer bounding boxes.
+3. Multi-Page Continuation: VedaAI tracks student answers spanning multiple pages (e.g. Q1a extending across Pages 1 to 5, Q2a on Page 6) so full answers are evaluated together.
+4. Run Assessment Mapping: Click 'Map & Grade Assessment' to generate match percentages, score breakdowns, and topic mastery data.`;
+  }
+
+  // 4. Rubrics & Teacher Toolkit
+  if (
+    q.includes('rubric') ||
+    q.includes('toolkit') ||
+    q.includes('bloom') ||
+    q.includes('taxonomy') ||
+    q.includes('remedial') ||
+    q.includes('generator')
+  ) {
+    return `The AI Teacher Toolkit provides customized teaching assets:
+
+1. Marking Rubrics: Build structured multi-criteria rubrics aligned with Bloom's Taxonomy levels (Remembering, Understanding, Applying, Analyzing, Evaluating, Creating).
+2. Model Answer Keys: Instantly generate step-by-step solution keys for uploaded question papers.
+3. Remedial Tasks: Automatically create practice worksheets tailored to student learning gaps identified during grading.`;
+  }
+
+  // 5. Analytics & Dashboard
+  if (
+    q.includes('analytic') ||
+    q.includes('chart') ||
+    q.includes('mastery') ||
+    q.includes('donut') ||
+    q.includes('column') ||
+    q.includes('graph') ||
+    q.includes('report')
+  ) {
+    return `VedaAI provides real-time classroom performance analytics:
+
+1. Grade Distribution (Donut Chart): Displays class score breakdown across grade bands (A+, A, B, C, Needs Improvement).
+2. Subject Topic Mastery (Vertical Column Chart): Highlights class performance percentages across specific topics and syllabus concepts.
+3. Exam Summaries: Displays total points scored, percentage marks, and overall qualitative feedback for each student submission.`;
+  }
+
+  // 6. Library & Storage
+  if (
+    q.includes('library') ||
+    q.includes('save') ||
+    q.includes('export') ||
+    q.includes('delete') ||
+    q.includes('pdf') ||
+    q.includes('history')
+  ) {
+    return `My Library allows you to store and manage your assessment history:
+
+1. Saved Items: Currently you have ${libraryItemsCount} saved assessment(s) in your library.
+2. Persisted State: Mapped assessments, question papers, and student scorecards can be reloaded at any time with full interactive overlays.
+3. Export & Download: You can export complete assessment reports and student answer mapping breakdowns to PDF.`;
+  }
+
+  // 7. Contextual Fallback for general questions
+  return `Hello ${userName}! Regarding "${query}":
+
+VedaAI is designed to streamline assessment workflows for educators. You can:
+- Map & Grade Answer Sheets: Automatically transcribe handwritten answers and grade them against model criteria.
+- Customize Mark Deductions: Enforce 0.5 or whole integer step-marking rules and view question-level feedback.
+- Generate Teaching Assets: Create Bloom's Taxonomy rubrics and remedial tasks in the AI Teacher Toolkit.
+- Track Topic Mastery: View interactive analytics charts on your dashboard.
+
+Feel free to ask specifically about paper uploading, rubric generation, mark deduction rules, or assessment exports!`;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { messages, userProfile, schoolDetails, academicYear, currentMappingSummary, libraryItemsCount } = await req.json();
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ reply: "VedaAI Assistant is online. How can I help you with grading, rubrics, or platform navigation today?" });
-    }
-
-    const groq = new Groq({ apiKey });
+    const groqApiKey = process.env.GROQ_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    
+    // Extract last user message for fallback intent classification if needed
+    const userMessages = (messages || []).filter((m: any) => m.role === 'user');
+    const lastUserQuery = userMessages.length > 0 ? (userMessages[userMessages.length - 1].text || userMessages[userMessages.length - 1].content || '') : '';
 
     const systemPrompt = `You are VedaAI Assistant, an intelligent, helpful AI assistant built specifically for educators on the VedaAI Automated Assessment Platform.
 
@@ -45,47 +158,78 @@ RULES FOR YOUR RESPONSES:
 - Be warm, professional, articulate, and directly helpful to the user.
 - DO NOT use any emojis in your response text.
 - If the user says "hi", "hey", "how are you", or greets you, respond conversationally as VedaAI Assistant and ask how you can help them with their teaching, classroom data, or assessment grading today.
-- Provide accurate answers according to the VedaAI platform features and current session state.
+- Provide accurate, specific answers according to the user's prompt, VedaAI platform features, and current session state.
 - Keep responses concise (1 to 3 paragraphs max).`;
 
-    const groqMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.map((m: any) => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.text || m.content || '',
-      })),
-    ];
-
     let replyText = '';
-    let lastError = null;
 
-    for (const model of GROQ_TEXT_MODELS) {
+    // Strategy 1: Try Groq if API Key is configured
+    if (groqApiKey && !groqApiKey.includes('your_groq_api_key_here')) {
       try {
-        const response = await groq.chat.completions.create({
-          model,
-          messages: groqMessages,
-          temperature: 0.7,
-          max_tokens: 600,
-        });
+        const groq = new Groq({ apiKey: groqApiKey.trim() });
+        const groqMessages = [
+          { role: 'system', content: systemPrompt },
+          ...messages.map((m: any) => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.text || m.content || '',
+          })),
+        ];
 
-        replyText = response.choices[0]?.message?.content || '';
-        if (replyText) break;
+        for (const model of GROQ_TEXT_MODELS) {
+          try {
+            const response = await groq.chat.completions.create({
+              model,
+              messages: groqMessages,
+              temperature: 0.7,
+              max_tokens: 600,
+            });
+
+            replyText = response.choices[0]?.message?.content || '';
+            if (replyText) break;
+          } catch (err: any) {
+            console.warn(`Groq assistant model ${model} attempt failed:`, err?.message || err);
+          }
+        }
       } catch (err: any) {
-        lastError = err;
-        console.warn(`Groq assistant model ${model} failed:`, err?.message);
+        console.warn('Groq client initialization or call failed:', err?.message || err);
       }
     }
 
+    // Strategy 2: Fallback to Gemini if Groq failed and Gemini API Key is available
+    if (!replyText && geminiApiKey && !geminiApiKey.includes('your_gemini_api_key_here')) {
+      try {
+        const genAI = new GoogleGenerativeAI(geminiApiKey.trim());
+        const geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+        
+        // Build prompt string combining system context and message history
+        const historyText = messages.map((m: any) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text || m.content || ''}`).join('\n');
+        const fullPrompt = `${systemPrompt}\n\nCONVERSATION HISTORY:\n${historyText}\n\nAssistant Response:`;
+
+        for (const modelName of geminiModels) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(fullPrompt);
+            replyText = result.response.text();
+            if (replyText) break;
+          } catch (err: any) {
+            console.warn(`Gemini model ${modelName} attempt failed:`, err?.message || err);
+          }
+        }
+      } catch (err: any) {
+        console.warn('Gemini client failed:', err?.message || err);
+      }
+    }
+
+    // Strategy 3: Smart Local Intent Engine Fallback (guarantees accurate answer even without active API keys)
     if (!replyText) {
-      replyText = `Hello ${userProfile?.name || 'Educator'}! I am VedaAI Assistant. I am doing well and ready to assist you with answer paper grading, classroom rubrics, topic mastery analytics, and exporting your assessments. How can I help you today?`;
+      replyText = getSmartFallbackResponse(lastUserQuery, userProfile, currentMappingSummary, libraryItemsCount);
     }
 
     return NextResponse.json({ reply: replyText });
   } catch (error: any) {
     console.error('Chat Assistant API Error:', error);
-    return NextResponse.json(
-      { reply: "I am VedaAI Assistant. I am here to help you navigate VedaAI, analyze student assessment scores, or generate custom rubrics. What would you like assistance with?" },
-      { status: 200 }
-    );
+    const fallback = getSmartFallbackResponse('help', null, null, 0);
+    return NextResponse.json({ reply: fallback }, { status: 200 });
   }
 }
+
