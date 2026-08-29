@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FileText, 
-  UploadCloud, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
+import {
+  FileText,
+  UploadCloud,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
   FileCheck,
   Globe,
-  Languages, 
+  Languages,
   ArrowRight,
   RefreshCw,
   Image as ImageIcon,
@@ -310,12 +310,12 @@ export default function Home() {
           setLibraryItems(parsed);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const saveUserProfile = (newProfile: typeof userProfile) => {
     const nameParts = newProfile.name.trim().split(/\s+/);
-    const initials = nameParts.length >= 2 
+    const initials = nameParts.length >= 2
       ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
       : (newProfile.name.slice(0, 2) || 'MR').toUpperCase();
 
@@ -324,7 +324,7 @@ export default function Home() {
     setEditProfileForm(updated);
     try {
       localStorage.setItem('veda_user_profile', JSON.stringify(updated));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const saveSchoolDetails = (newSchool: typeof schoolDetails) => {
@@ -333,7 +333,7 @@ export default function Home() {
     setUserProfile(prev => ({ ...prev, school: newSchool.schoolName, campus: newSchool.campus }));
     try {
       localStorage.setItem('veda_school_details', JSON.stringify(newSchool));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSaveToLibrary = () => {
@@ -355,7 +355,7 @@ export default function Home() {
 
     setLibraryItems(prev => {
       const updated = [newItem, ...prev];
-      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) {}
+      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) { }
       return updated;
     });
     alert(`Assessment (${paperLanguage}) successfully saved to My Library!`);
@@ -364,7 +364,7 @@ export default function Home() {
   const handleDeleteLibraryItem = (id: string) => {
     setLibraryItems(prev => {
       const updated = prev.filter(item => item.id !== id);
-      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) {}
+      try { localStorage.setItem('veda_assessment_library', JSON.stringify(updated)); } catch (e) { }
       return updated;
     });
   };
@@ -391,7 +391,7 @@ export default function Home() {
     setShowProfileDropdown(false);
     try {
       localStorage.setItem('veda_user_profile', JSON.stringify(signedOut));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSignInSubmit = (e: React.FormEvent) => {
@@ -437,9 +437,9 @@ export default function Home() {
       const replyText = data.reply || "I am VedaAI Assistant. How can I assist you with your assessment grading or teacher toolkit today?";
       setAiChatMessages(prev => [...prev, { role: 'assistant', text: replyText }]);
     } catch (err) {
-      setAiChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        text: `Hello ${userProfile.name}! I am having trouble reaching the assistant server right now. You can still manage your library, grade papers, and generate Bloom's taxonomy rubrics in the platform.` 
+      setAiChatMessages(prev => [...prev, {
+        role: 'assistant',
+        text: `Hello ${userProfile.name}! I am having trouble reaching the assistant server right now. You can still manage your library, grade papers, and generate Bloom's taxonomy rubrics in the platform.`
       }]);
     } finally {
       setIsAiAssistantTyping(false);
@@ -921,8 +921,8 @@ export default function Home() {
       }
 
       // Check if uploaded document file is English (Latin script) while user selected Hindi or Marathi
-      const isUploadedFileEnglish = (questionPaper?.name && !/[\u0900-\u097F]/.test(questionPaper.name)) || 
-                                    (answerSheet?.name && !/[\u0900-\u097F]/.test(answerSheet.name));
+      const isUploadedFileEnglish = (questionPaper?.name && !/[\u0900-\u097F]/.test(questionPaper.name)) ||
+        (answerSheet?.name && !/[\u0900-\u097F]/.test(answerSheet.name));
 
       if (paperLanguage !== 'English' && isUploadedFileEnglish) {
         setErrorMsg(`Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage}, Uploaded Document: English)`);
@@ -957,7 +957,7 @@ export default function Home() {
       if (mapResult.success) {
         setMappingData(mapResult);
         setStatusText(`Assessment (${paperLanguage}) Mapped & Graded Successfully`);
-        
+
         const initExpand: Record<string, boolean> = {};
         mapResult.mapped_questions.forEach(q => { initExpand[q.question_number] = true; });
         setExpandedQuestions(initExpand);
@@ -1000,7 +1000,7 @@ export default function Home() {
     }
     if (!mappingData) return [1];
     const pageSet = new Set<number>();
-    
+
     mappingData.mapped_questions.forEach(q => {
       q.answers.forEach(ans => {
         ans.pages.forEach(p => pageSet.add(p.page_number));
@@ -1162,7 +1162,7 @@ export default function Home() {
           <div className="w-px h-5 bg-[#E8E5DF] hidden sm:block"></div>
 
           {/* Help ? Button */}
-          <button 
+          <button
             onClick={() => setShowHelpModal(true)}
             className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition cursor-pointer"
             title="Help & Quick Start"
@@ -1172,7 +1172,7 @@ export default function Home() {
 
           {/* Notifications Bell Button */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="w-9 h-9 rounded-full bg-[#F8F7F4] border border-[#E8E5DF] hover:bg-[#F0EEE8] flex items-center justify-center text-[#554F49] transition relative cursor-pointer"
               title="Notifications"
@@ -1188,7 +1188,7 @@ export default function Home() {
               <div className="absolute right-0 top-12 w-80 rounded-2xl bg-[#FFFFFF] border border-[#E8E5DF] shadow-xl p-4 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center justify-between border-b border-[#E8E5DF] pb-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#1E1E1E]">Notifications</span>
-                  <button 
+                  <button
                     onClick={() => setNotifications(prev => prev.map(n => ({ ...n, unread: false })))}
                     className="text-[11px] font-semibold text-[#FF5722] hover:underline"
                   >
@@ -1211,7 +1211,7 @@ export default function Home() {
           </div>
 
           {/* Sparkle AI Assistant Button */}
-          <button 
+          <button
             onClick={() => setShowAiChatModal(true)}
             className="w-9 h-9 rounded-full bg-[#FF5722]/10 border border-[#FF5722]/30 hover:bg-[#FF5722]/20 flex items-center justify-center text-[#FF5722] transition cursor-pointer"
             title="Ask VedaAI Assistant"
@@ -1221,15 +1221,15 @@ export default function Home() {
 
           {/* User Profile Badge & Dropdown */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               className="flex items-center gap-2.5 pl-2 border-l border-[#E8E5DF] cursor-pointer group"
             >
               <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-[#FF5722] via-[#FF8A65] to-[#FFCC80] shadow-sm group-hover:scale-105 transition">
-                <img 
-                  src="/student-avatar.jpg" 
-                  alt={userProfile.name} 
-                  className="w-8 h-8 rounded-full object-cover border border-white" 
+                <img
+                  src="/student-avatar.jpg"
+                  alt={userProfile.name}
+                  className="w-8 h-8 rounded-full object-cover border border-white"
                 />
               </div>
               <span className="text-xs sm:text-sm font-semibold text-[#1E1E1E] hidden md:inline">{userProfile.name}</span>
@@ -1243,20 +1243,20 @@ export default function Home() {
                   <span className="text-[11px] text-[#888077]">{userProfile.role}</span>
                   <span className="text-[10px] text-[#FF5722] font-semibold mt-1">{userProfile.school} ({userProfile.campus})</span>
                 </div>
-                <button 
+                <button
                   onClick={() => { setShowAccountSettingsModal(true); setShowProfileDropdown(false); }}
                   className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] cursor-pointer"
                 >
                   <Settings className="w-4 h-4 text-[#888077]" /> Account Settings
                 </button>
-                <button 
+                <button
                   onClick={() => { setShowSchoolModal(true); setShowProfileDropdown(false); }}
                   className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E] cursor-pointer"
                 >
                   <GraduationCap className="w-4 h-4 text-[#888077]" /> School Roster & License
                 </button>
                 <div className="w-full h-px bg-[#E8E5DF] my-1"></div>
-                <button 
+                <button
                   onClick={handleSignOut}
                   className="flex items-center gap-2.5 p-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 cursor-pointer"
                 >
@@ -1275,10 +1275,10 @@ export default function Home() {
             {/* VedaAI Logo Header */}
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveNav('exams')}>
               <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-[#FF5722] via-[#FF8A65] to-[#FFCC80] shadow-md shrink-0">
-                <img 
-                  src="/student-avatar.jpg" 
-                  alt="VedaAI Student Logo" 
-                  className="w-9 h-9 rounded-full object-cover border border-white" 
+                <img
+                  src="/student-avatar.jpg"
+                  alt="VedaAI Student Logo"
+                  className="w-9 h-9 rounded-full object-cover border border-white"
                 />
               </div>
               {!sidebarCollapsed && (
@@ -1290,7 +1290,7 @@ export default function Home() {
             </div>
 
             {/* AI Teacher's Toolkit Button */}
-            <button 
+            <button
               onClick={() => setShowToolkitModal(true)}
               className={`w-full py-3 px-3.5 rounded-xl border border-[#FF5722] bg-[#FFF1EC] text-[#FF5722] hover:bg-[#FFE6DC] font-semibold text-xs transition flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} shadow-sm cursor-pointer active:scale-95`}
             >
@@ -1302,41 +1302,37 @@ export default function Home() {
 
             {/* Navigation Menu */}
             <nav className="flex flex-col gap-1.5">
-              <button 
+              <button
                 onClick={() => setActiveNav('home')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  activeNav === 'home' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
-                }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${activeNav === 'home' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                  }`}
               >
                 <HomeIcon className={`w-4 h-4 shrink-0 ${activeNav === 'home' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>Home</span>}
               </button>
 
-              <button 
+              <button
                 onClick={() => setActiveNav('classroom')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  activeNav === 'classroom' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
-                }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${activeNav === 'classroom' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                  }`}
               >
                 <Users className={`w-4 h-4 shrink-0 ${activeNav === 'classroom' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>My Classroom</span>}
               </button>
 
-              <button 
+              <button
                 onClick={() => setActiveNav('assignments')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  activeNav === 'assignments' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
-                }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${activeNav === 'assignments' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                  }`}
               >
                 <FolderKanban className={`w-4 h-4 shrink-0 ${activeNav === 'assignments' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>Assignments</span>}
               </button>
 
-              <button 
+              <button
                 onClick={() => setActiveNav('exams')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  activeNav === 'exams' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF] shadow-sm' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
-                }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${activeNav === 'exams' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF] shadow-sm' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                  }`}
               >
                 <div className="w-5 h-5 rounded-full overflow-hidden border border-[#FF5722] shrink-0 p-0.5 bg-gradient-to-tr from-[#FF5722] to-[#FF8A65]">
                   <img src="/student-avatar.jpg" alt="Exams Avatar" className="w-full h-full object-cover rounded-full" />
@@ -1344,11 +1340,10 @@ export default function Home() {
                 {!sidebarCollapsed && <span>Exams</span>}
               </button>
 
-              <button 
+              <button
                 onClick={() => setActiveNav('library')}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  activeNav === 'library' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
-                }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${activeNav === 'library' ? 'bg-[#F8F7F4] text-[#1E1E1E] border border-[#E8E5DF]' : 'text-[#554F49] hover:bg-[#F8F7F4] hover:text-[#1E1E1E]'
+                  }`}
               >
                 <BookOpen className={`w-4 h-4 shrink-0 ${activeNav === 'library' ? 'text-[#FF5722]' : 'text-[#888077]'}`} />
                 {!sidebarCollapsed && <span>My Library</span>}
@@ -1358,7 +1353,7 @@ export default function Home() {
 
           {/* Sidebar Bottom Profile Card */}
           <div className="p-4 border-t border-[#E8E5DF]">
-            <div 
+            <div
               onClick={() => setShowSchoolModal(true)}
               className="p-3 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center gap-3 cursor-pointer hover:border-[#B3ADA1] transition"
             >
@@ -1382,7 +1377,7 @@ export default function Home() {
             // Filter saved library items by active selected academic year
             const filteredLibrary = libraryItems.filter(item => item.academicYear === academicYear);
             const liveAssessmentsPool = [...filteredLibrary];
-            
+
             // Include currently active session mapping if it matches or is active
             if (mappingData) {
               liveAssessmentsPool.push({
@@ -1425,7 +1420,7 @@ export default function Home() {
             // Compute exact real-time topic mastery % from actual question text & scores
             const getTopicMastery = (keywords: string[]) => {
               if (!hasLiveData) return 0;
-              const matchingQ = allLiveQuestions.filter(q => 
+              const matchingQ = allLiveQuestions.filter(q =>
                 keywords.some(kw => q.question_text.toLowerCase().includes(kw) || (q.complete_raw_text && q.complete_raw_text.toLowerCase().includes(kw)))
               );
               if (matchingQ.length === 0) return 0;
@@ -1456,7 +1451,7 @@ export default function Home() {
                         onChange={(e) => {
                           const yr = e.target.value;
                           setAcademicYear(yr);
-                          try { localStorage.setItem('veda_academic_year', yr); } catch(e){}
+                          try { localStorage.setItem('veda_academic_year', yr); } catch (e) { }
                         }}
                         className="px-3.5 py-1.5 rounded-full bg-[#FFF1EC] text-[#FF5722] border border-[#FF5722]/30 font-bold text-xs focus:outline-none cursor-pointer hover:bg-[#FFE6DC] transition shadow-sm"
                       >
@@ -1876,11 +1871,10 @@ export default function Home() {
                           key={lang}
                           type="button"
                           onClick={() => setPaperLanguage(lang)}
-                          className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                            paperLanguage === lang
+                          className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${paperLanguage === lang
                               ? 'bg-[#FF5722] text-white shadow-sm scale-105'
                               : 'text-[#554F49] hover:bg-[#E8E5DF]'
-                          }`}
+                            }`}
                         >
                           {lang === 'English' && '🇬🇧 English'}
                           {lang === 'Hindi' && '🇮🇳 Hindi (हिंदी)'}
@@ -1976,9 +1970,9 @@ export default function Home() {
                       <div className="flex flex-col gap-1 flex-1">
                         <div className="flex items-center justify-between">
                           <h4 className="text-base font-extrabold text-red-900">Paper Language Mismatch Error</h4>
-                          <button 
+                          <button
                             type="button"
-                            onClick={() => setErrorMsg(null)} 
+                            onClick={() => setErrorMsg(null)}
                             className="text-red-600 hover:text-red-800 text-xs font-bold underline cursor-pointer px-2 py-0.5 rounded hover:bg-red-100"
                           >
                             Dismiss
@@ -2023,8 +2017,8 @@ export default function Home() {
                   </div>
 
                   <div className="w-full bg-[#F1EFEA] rounded-full h-2 overflow-hidden max-w-md">
-                    <div 
-                      className="bg-[#FF5722] h-full transition-all duration-500 rounded-full" 
+                    <div
+                      className="bg-[#FF5722] h-full transition-all duration-500 rounded-full"
                       style={{ width: `${(processStep / 3) * 100}%` }}
                     ></div>
                   </div>
@@ -2124,25 +2118,22 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                         <button
                           onClick={() => setActiveTab('all')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                            activeTab === 'all' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${activeTab === 'all' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                            }`}
                         >
                           All ({mappingData.mapped_questions.length})
                         </button>
                         <button
                           onClick={() => setActiveTab('matched')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                            activeTab === 'matched' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${activeTab === 'matched' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                            }`}
                         >
                           Matched ({mappingData.summary.matched_questions})
                         </button>
                         <button
                           onClick={() => setActiveTab('unanswered')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                            activeTab === 'unanswered' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${activeTab === 'unanswered' ? 'bg-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#FFFFFF] text-[#777067] border border-[#E8E5DF]'
+                            }`}
                         >
                           Unanswered ({mappingData.summary.unanswered_questions})
                         </button>
@@ -2164,11 +2155,10 @@ export default function Home() {
                               <div
                                 key={q.question_number}
                                 onClick={() => handleSelectQuestion(q.question_number)}
-                                className={`p-4 rounded-xl border transition cursor-pointer flex flex-col gap-3 ${
-                                  isSelected
+                                className={`p-4 rounded-xl border transition cursor-pointer flex flex-col gap-3 ${isSelected
                                     ? 'bg-[#FFFFFF] border-[#1E1E1E] ring-2 ring-[#1E1E1E]/20 shadow-md'
                                     : 'bg-[#FFFFFF] border-[#E8E5DF] hover:border-[#B3ADA1]'
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex items-start gap-3">
@@ -2247,7 +2237,7 @@ export default function Home() {
                     </div>
 
                     {/* RIGHT COLUMN: ANSWER SHEET CANVAS */}
-                    <div 
+                    <div
                       ref={viewerContainerRef}
                       className={`md:col-span-7 bg-[#FFFFFF] border border-[#E8E5DF] rounded-2xl p-4 flex flex-col gap-4 max-h-[800px] overflow-hidden relative shadow-sm ${mobileTab === 'questions' ? 'hidden md:flex' : 'flex'}`}
                     >
@@ -2327,7 +2317,7 @@ export default function Home() {
                                   </div>
                                 </div>
 
-                                <div 
+                                <div
                                   style={{ width: `${canvasZoom}%` }}
                                   className="relative rounded-xl overflow-hidden border border-[#E8E5DF] bg-white flex items-center justify-center transition-all duration-200 shadow-md"
                                 >
@@ -2370,13 +2360,12 @@ export default function Home() {
                                               onMouseEnter={() => setActiveHoveredBoxId(`${q.question_number}`)}
                                               onMouseLeave={() => setActiveHoveredBoxId(null)}
                                               style={boxStyle}
-                                              className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
-                                                isSelected
+                                              className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${isSelected
                                                   ? 'border-2 border-[#22C55E] bg-transparent z-30 ring-2 ring-[#22C55E]/30 shadow-md'
                                                   : activeHoveredBoxId === q.question_number
-                                                  ? 'border-2 border-[#22C55E] bg-transparent z-20'
-                                                  : 'border-2 border-[#22C55E] bg-transparent hover:border-[#16A34A] z-10'
-                                              }`}
+                                                    ? 'border-2 border-[#22C55E] bg-transparent z-20'
+                                                    : 'border-2 border-[#22C55E] bg-transparent hover:border-[#16A34A] z-10'
+                                                }`}
                                             >
                                               <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#22C55E] text-[#FFFFFF] shadow-sm">
                                                 Q{q.question_number}
@@ -2405,11 +2394,10 @@ export default function Home() {
                                               setSelectedQuestionNumber(targetId);
                                             }}
                                             style={boxStyle}
-                                            className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${
-                                              isSelected
+                                            className={`absolute rounded-lg transition-all cursor-pointer flex items-start justify-between p-1.5 ${isSelected
                                                 ? 'border-2 border-[#EAB308] bg-transparent z-30'
                                                 : 'border-2 border-dashed border-[#EAB308] bg-transparent z-10'
-                                            }`}
+                                              }`}
                                           >
                                             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#EAB308] text-white">
                                               Unmatched
@@ -2498,11 +2486,10 @@ export default function Home() {
                     key={lang}
                     type="button"
                     onClick={() => setPaperLanguage(lang)}
-                    className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
-                      paperLanguage === lang
+                    className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${paperLanguage === lang
                         ? 'bg-[#FF5722] text-white shadow-sm'
                         : 'bg-white text-[#554F49] border border-[#E8E5DF] hover:bg-[#F0EEE8]'
-                    }`}
+                      }`}
                   >
                     {lang === 'English' && 'English'}
                     {lang === 'Hindi' && 'Hindi (हिंदी)'}
@@ -2607,7 +2594,7 @@ export default function Home() {
                 onKeyDown={e => e.key === 'Enter' && handleSendAiChatMessage()}
                 className="flex-1 px-4 py-2.5 rounded-full border border-[#E8E5DF] bg-[#F8F7F4] text-xs sm:text-sm focus:outline-none focus:border-[#FF5722] disabled:opacity-50"
               />
-              <button 
+              <button
                 disabled={isAiAssistantTyping || !aiChatInput.trim()}
                 onClick={handleSendAiChatMessage}
                 className="px-4 py-2.5 rounded-full bg-[#FF5722] text-white font-bold text-xs hover:bg-[#E04818] disabled:opacity-50 cursor-pointer"
