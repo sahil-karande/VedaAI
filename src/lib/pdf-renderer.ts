@@ -1,18 +1,18 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure pdfjs worker source
+// Configure pdfjs worker source safely with fallback for iOS/browsers
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
 
 /**
- * Renders all pages of a PDF file into an array of base64 PNG image data URLs.
+ * Renders all pages of a PDF file into an array of base64 JPEG image data URLs.
  * @param file The PDF file object
- * @param maxDimension Maximum width/height for rendered page images (default 1600px for sharp OCR)
+ * @param maxDimension Maximum width/height for rendered page images (default 900px for sharp OCR and low payload size)
  */
 export async function renderPdfToPageImages(
   file: File,
-  maxDimension = 1200
+  maxDimension = 900
 ): Promise<string[]> {
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -26,7 +26,7 @@ export async function renderPdfToPageImages(
 
     // Calculate scale factor to reach desired max dimension for optimal OCR speed & quality
     const maxSide = Math.max(initialViewport.width, initialViewport.height);
-    const scale = maxSide > 0 ? maxDimension / maxSide : 1.2;
+    const scale = maxSide > 0 ? maxDimension / maxSide : 1.0;
     const viewport = page.getViewport({ scale });
 
     const canvas = document.createElement('canvas');
@@ -45,9 +45,13 @@ export async function renderPdfToPageImages(
       viewport: viewport,
     }).promise;
 
-    // Output JPEG for ~10x smaller size and 10x faster network payload transfer
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    // Output JPEG at 0.65 quality for fast network payload transfer & iOS mobile compatibility
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     pageImages.push(dataUrl);
+
+    // Release canvas memory in iOS Safari GPU context
+    canvas.width = 0;
+    canvas.height = 0;
   }
 
   return pageImages;
@@ -66,7 +70,10 @@ export async function rotateImageDataUrl(
 
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for remote http/https URLs to prevent DOMException errors on data URLs in iOS Safari
+    if (!dataUrl.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -98,10 +105,14 @@ export async function rotateImageDataUrl(
       ctx.drawImage(img, 0, 0);
       ctx.restore();
 
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      const result = canvas.toDataURL('image/jpeg', 0.65);
+      canvas.width = 0;
+      canvas.height = 0;
+      resolve(result);
     };
 
     img.onerror = (err) => reject(err);
     img.src = dataUrl;
   });
 }
+

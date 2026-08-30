@@ -878,7 +878,12 @@ export default function Home() {
         method: 'POST',
         body: formDataQP,
       });
-      let qpData: any = await resQP.json();
+      let qpData: any = {};
+      try {
+        qpData = await resQP.json();
+      } catch (e) {
+        console.warn('Failed to parse qpData JSON response:', e);
+      }
 
       if (qpData.languageMismatch || (qpData.error && qpData.error.toLowerCase().includes('match'))) {
         setErrorMsg(qpData.error || `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage})`);
@@ -914,7 +919,12 @@ export default function Home() {
         method: 'POST',
         body: formDataANS,
       });
-      let ansData: any = await resANS.json();
+      let ansData: any = {};
+      try {
+        ansData = await resANS.json();
+      } catch (e) {
+        console.warn('Failed to parse ansData JSON response:', e);
+      }
 
       if (ansData.languageMismatch || (ansData.error && ansData.error.toLowerCase().includes('match'))) {
         setErrorMsg(ansData.error || `Language of uploaded document and selected language is not matched. (Selected: ${paperLanguage})`);
@@ -955,7 +965,13 @@ export default function Home() {
         }),
       });
 
-      const mapResult: MappingData = await resMap.json();
+      let mapResult: MappingData = {} as any;
+      try {
+        mapResult = await resMap.json();
+      } catch (e) {
+        console.warn('Failed to parse mapResult JSON response:', e);
+      }
+
       if (mapResult.success) {
         setMappingData(mapResult);
         setStatusText(`Assessment (${paperLanguage}) Mapped & Graded Successfully`);
@@ -1963,33 +1979,42 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Language Mismatch Error Alert Banner */}
-                  {errorMsg && (
-                    <div className="p-5 rounded-2xl bg-red-50 border-2 border-red-200 text-red-700 flex items-start gap-4 shadow-md max-w-3xl mx-auto w-full animate-in fade-in zoom-in-95">
-                      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0 text-red-600">
-                        <AlertTriangle className="w-6 h-6 animate-bounce" />
-                      </div>
-                      <div className="flex flex-col gap-1 flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-base font-extrabold text-red-900">Paper Language Mismatch Error</h4>
-                          <button
-                            type="button"
-                            onClick={() => setErrorMsg(null)}
-                            className="text-red-600 hover:text-red-800 text-xs font-bold underline cursor-pointer px-2 py-0.5 rounded hover:bg-red-100"
-                          >
-                            Dismiss
-                          </button>
+                  {/* Error Alert Banner */}
+                  {errorMsg && (() => {
+                    const isLangError = errorMsg.toLowerCase().includes('language') || errorMsg.toLowerCase().includes('match');
+                    return (
+                      <div className="p-5 rounded-2xl bg-red-50 border-2 border-red-200 text-red-700 flex items-start gap-4 shadow-md max-w-3xl mx-auto w-full animate-in fade-in zoom-in-95">
+                        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0 text-red-600">
+                          <AlertTriangle className="w-6 h-6 animate-bounce" />
                         </div>
-                        <p className="text-xs sm:text-sm font-medium text-red-800 leading-relaxed mt-1">
-                          {errorMsg}
-                        </p>
-                        <div className="mt-2.5 p-3 rounded-xl bg-white/80 border border-red-200 flex items-center gap-2">
-                          <span className="text-xs font-extrabold text-red-900">💡 Recommended Action:</span>
-                          <span className="text-xs font-semibold text-red-800">Switch the Paper Language selector bar to match your document's script, then click Start Mapping again.</span>
+                        <div className="flex flex-col gap-1 flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-base font-extrabold text-red-900">
+                              {isLangError ? 'Paper Language Mismatch Error' : 'Assessment Processing Error'}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => setErrorMsg(null)}
+                              className="text-red-600 hover:text-red-800 text-xs font-bold underline cursor-pointer px-2 py-0.5 rounded hover:bg-red-100"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                          <p className="text-xs sm:text-sm font-medium text-red-800 leading-relaxed mt-1">
+                            {errorMsg}
+                          </p>
+                          <div className="mt-2.5 p-3 rounded-xl bg-white/80 border border-red-200 flex items-center gap-2">
+                            <span className="text-xs font-extrabold text-red-900">💡 Recommended Action:</span>
+                            <span className="text-xs font-semibold text-red-800">
+                              {isLangError
+                                ? "Switch the Paper Language selector bar to match your document's script, then click Start Mapping again."
+                                : "Ensure your uploaded PDF document is valid and clear, then click Start Mapping again."}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Start Mapping Action Button */}
                   <div className="flex flex-col items-center gap-3">
